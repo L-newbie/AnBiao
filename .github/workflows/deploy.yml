@@ -35,7 +35,9 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci --include=dev || npm install --include=dev
+        run: |
+          npm config set include dev
+          npm ci || (rm -rf node_modules package-lock.json && npm install)
 
       - name: Build
         env:
