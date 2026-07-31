@@ -32,12 +32,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          # 临时移除了 cache 选项，防止错误的本地缓存卡死安装流程
 
-      - name: Install
+      - name: Install Dependencies
+        # 强制清理、显式包含开发依赖、并直接运行纯净安装
         run: |
-          npm config set include dev
-          npm ci || (rm -rf node_modules package-lock.json && npm install)
+          rm -rf node_modules package-lock.json
+          npm install --include=dev
 
       - name: Build
         env:
