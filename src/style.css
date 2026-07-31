@@ -33,6 +33,7 @@ body,
 body {
   color: var(--color-mist-text);
   background: #f0f6fb; /* fallback before the gradient paints */
+  overflow-x: hidden;
 }
 
 /* Full-page clear-sky gradient, fixed so it doesn't scroll. */
