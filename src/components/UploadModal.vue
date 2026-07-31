@@ -193,7 +193,7 @@ const sizeHint = computed(() => (file.value ? prettyBytes(file.value.size) : '')
             </span>
             <span v-if="file" class="text-[10px] text-mist-muted/70">{{ sizeHint }}</span>
           </button>
-          <input ref="fileInput" type="file" accept="image/*" capture="environment" @change="onFile" class="hidden" />
+          <input ref="fileInput" type="file" accept="image/*" @change="onFile" class="hidden" />
 
           <!-- location button -->
           <button
