@@ -9,7 +9,7 @@
 
 <p>
   <a href="https://l-newbie.github.io/AnBiao/">
-    <img src="https://img.shields.io/badge/点击这里-别害羞-7c5cff?style=for-the-badge&labelColor=1a1a2e" alt="在线体验" />
+    <img src="https://img.shields.io/badge/点击这里-7c5cff?style=for-the-badge&labelColor=1a1a2e" alt="在线体验" />
   </a>
 </p>
 
