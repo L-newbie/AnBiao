@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
       <div class="absolute inset-0 bg-black/50 backdrop-blur-sm fade-in" @click="close"></div>
 
       <section
-        class="relative w-full sm:max-w-2xl max-h-[94vh] overflow-y-auto thin-scroll glass-strong rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 space-y-3 modal-pop"
+        class="relative w-full sm:max-w-2xl max-h-[94vh] overflow-y-auto overflow-x-hidden thin-scroll glass-strong rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 space-y-3 modal-pop"
       >
         <div class="flex items-center justify-between">
           <h2 class="font-serif text-xl text-mist-text">选择位置</h2>
@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div class="relative">
+          <div class="relative w-full min-w-0">
             <div ref="mapEl" class="w-full h-72 rounded-2xl overflow-hidden glass"></div>
             <div
               v-if="loading"
