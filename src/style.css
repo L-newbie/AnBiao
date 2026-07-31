@@ -36,6 +36,15 @@ body {
   overflow-x: hidden;
 }
 
+/* iOS auto-zooms any focused input with font-size < 16px. Force 16px+ on form
+   controls so focusing an input never scales the page up. !important needed
+   to beat Tailwind v4's text-sm/text-xs atomic classes. */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 /* Full-page clear-sky gradient, fixed so it doesn't scroll. */
 .app-gradient {
   background:
