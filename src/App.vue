@@ -5,6 +5,7 @@ import FabButton from './components/FabButton.vue'
 import UploadModal from './components/UploadModal.vue'
 import CommunityView from './views/CommunityView.vue'
 import MineView from './views/MineView.vue'
+import DetailView from './views/DetailView.vue'
 import { loadEntries } from './lib/github.js'
 import { usePullRefresh } from './lib/usePullRefresh.js'
 
@@ -13,6 +14,16 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
 const tab = ref(localStorage.getItem(TAB_KEY) || 'community')
 const modalOpen = ref(false)
+
+// Currently-open detail entry (null = no detail view). Opening a detail
+// switches the main area to DetailView; closing returns to the active tab.
+const detail = ref(null)
+function openDetail(entry) {
+  detail.value = entry
+}
+function closeDetail() {
+  detail.value = null
+}
 
 const entries = ref([])
 const loading = ref(true)
@@ -23,7 +34,8 @@ const loadErr = ref('')
 const newCount = ref(0)
 let autoTimer = null
 
-// Show published first, newest first; hide entries over threshold.
+// Show newest first. (The report/hidden flow was removed, so every published
+// entry is visible.)
 const visible = computed(() =>
   entries.value
     .filter((e) => e.status !== 'hidden' || e._local)
@@ -105,11 +117,6 @@ function onSubmitted(entry) {
   entries.value = [entry, ...entries.value]
 }
 
-function onReported(updated) {
-  const i = entries.value.findIndex((e) => e.id === updated.id)
-  if (i >= 0) entries.value[i] = { ...entries.value[i], ...updated }
-}
-
 onMounted(async () => {
   loading.value = true
   try {
@@ -131,24 +138,30 @@ onBeforeUnmount(() => {
   <div class="min-h-full app-gradient">
     <main class="max-w-5xl mx-auto px-4 pt-2 pb-28">
       <Transition name="view-fade" mode="out-in">
+        <DetailView
+          v-if="detail"
+          key="detail"
+          :entry="detail"
+          @close="closeDetail"
+        />
         <CommunityView
-          v-if="tab === 'community'"
+          v-else-if="tab === 'community'"
           key="community"
           :entries="visible"
           :loading="loadingForView"
           :pull="pull"
           :new-count="newCount"
-          @reported="onReported"
+          @open="openDetail"
           @refresh="onPullRefresh"
           @show-new="revealNew"
         />
-        <MineView v-else key="mine" :entries="visible" />
+        <MineView v-else key="mine" :entries="visible" @open="openDetail" />
       </Transition>
     </main>
 
-    <FabButton v-if="tab === 'community'" @click="modalOpen = true" />
+    <FabButton v-if="tab === 'community' && !detail" @click="modalOpen = true" />
 
-    <TabBar v-model="tab" />
+    <TabBar v-if="!detail" v-model="tab" />
 
     <UploadModal v-model:open="modalOpen" @submitted="onSubmitted" />
   </div>
