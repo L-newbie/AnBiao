@@ -38,7 +38,7 @@ jobs:
         run: npm ci
 
       - name: Verify vite installed
-        run: node -e "require('vite/package.json').version" && echo "vite OK"
+        run: npx vite --version
 
       - name: Build
         env:
