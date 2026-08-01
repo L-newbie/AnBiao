@@ -5,13 +5,6 @@ on:
     branches: [master]
   # Allow manual re-deploys / data rebuilds without a source change.
   workflow_dispatch:
-  # Auto-deploy roughly every 8 hours so newly uploaded data (on the `data`
-  # branch) gets aggregated and published without a manual run or a master
-  # push. Note: GitHub Actions schedule uses UTC; off-the-hour minute to
-  # dodge the global cron crunch and reduce queueing delay. 8h cadence:
-  # 00:37 / 08:37 / 16:37 UTC = 08:37 / 16:37 / 00:37 Beijing time.
-  schedule:
-    - cron: '37 0,8,16 * * *'
 
 permissions:
   contents: read
