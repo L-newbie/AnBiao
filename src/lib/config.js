@@ -16,7 +16,6 @@ export const config = {
   token: env.VITE_DATA_TOKEN || '',
   // Build-time-only URL of the aggregated data.json served by GitHub Pages.
   dataUrl: (env.BASE_URL || '/') + 'data.json',
-  reportThreshold: 3,
   maxUploadsPerDay: 2,
   maxImageEdge: 1600,
   jpegQuality: 0.8,
