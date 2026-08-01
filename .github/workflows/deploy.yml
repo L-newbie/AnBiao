@@ -35,7 +35,10 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci || npm install
+        run: npm ci
+
+      - name: Verify vite installed
+        run: node -e "require('vite/package.json').version" && echo "vite OK"
 
       - name: Build
         env:
