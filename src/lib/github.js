@@ -53,31 +53,9 @@ export async function uploadEntry({ id, deviceId, lat, lng, city, address, descr
     description,
     image: imgPath,
     status: 'published',
-    reports: [],
   }
   await putFile(jsonPath, btoa(unescape(encodeURIComponent(JSON.stringify(entry, null, 2)))), `chore: add entry ${id}`)
   return entry
-}
-
-// Append a report to an existing entry's JSON (read -> modify -> update by SHA).
-export async function reportEntry(id, report) {
-  const path = `data/${id}.json`
-  const meta = await getFileMeta(path)
-  if (!meta) throw new Error('找不到该记录')
-  const entry = JSON.parse(atob(meta.content))
-  entry.reports = [...(entry.reports || []), report]
-  if (entry.reports.length >= config.reportThreshold) entry.status = 'hidden'
-  const newB64 = btoa(unescape(encodeURIComponent(JSON.stringify(entry, null, 2))))
-  await putFile(path, newB64, `chore: report ${id}`, meta.sha)
-  return entry
-}
-
-// Fetch a single file's content + SHA from the data branch.
-async function getFileMeta(path) {
-  const res = await fetch(API + repoPath(path), { headers: headers(false) })
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`GitHub 读取失败 ${res.status}`)
-  return res.json()
 }
 
 // Runtime read: one fetch of the prebuilt aggregate served by Pages.
