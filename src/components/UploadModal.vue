@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { compressImage, prettyBytes } from '../lib/geo.js'
 import { config } from '../lib/config.js'
 import { getDeviceId, recordUpload, remainingToday } from '../lib/device.js'
@@ -26,13 +26,25 @@ const mapOpen = ref(false)
 const remaining = ref(remainingToday(config.maxUploadsPerDay))
 const locked = computed(() => remaining.value <= 0)
 
+function refreshRemaining() {
+  remaining.value = remainingToday(config.maxUploadsPerDay)
+}
+
 // Reset everything each time the modal opens.
 watch(
   () => props.open,
   (o) => {
-    if (o) reset()
+    if (o) {
+      reset()
+      refreshRemaining()
+    }
   },
 )
+
+// When App rebuilds counts from server data (e.g. after a cache clear),
+// refresh the remaining count too.
+onMounted(() => window.addEventListener('gc-counts-rebuilt', refreshRemaining))
+onBeforeUnmount(() => window.removeEventListener('gc-counts-rebuilt', refreshRemaining))
 
 function reset() {
   file.value = null
