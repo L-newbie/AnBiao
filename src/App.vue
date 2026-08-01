@@ -8,6 +8,7 @@ import MineView from './views/MineView.vue'
 import DetailView from './views/DetailView.vue'
 import { loadEntries } from './lib/github.js'
 import { usePullRefresh } from './lib/usePullRefresh.js'
+import { getDeviceId, rebuildUploadsToday, rebuildCommentsToday, recordUpload, recordComment, uploadsToday, commentsToday } from './lib/device.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
@@ -55,9 +56,25 @@ async function refresh() {
     const fresh = await loadEntries()
     entries.value = mergeKeepingLocal(entries.value, fresh)
     newCount.value = 0
+    rebuildCountsFromServer()
   } catch (e) {
     loadErr.value = e.message
   }
+}
+
+// Rebuild the soft daily counters from server truth. After a cache clear the
+// localStorage counters reset to 0 but the device id is fingerprint-derived
+// (stable), so we can scan the aggregated entries and recover today's usage.
+// We write the recovered counts back to localStorage and notify the upload
+// modal / detail view to refresh their displayed remaining counts.
+function rebuildCountsFromServer() {
+  const id = getDeviceId()
+  const uploads = rebuildUploadsToday(entries.value, id)
+  const comments = rebuildCommentsToday(entries.value, id)
+  // Bring localStorage up to the rebuilt value (only adds, never subtracts).
+  while (uploadsToday() < uploads) recordUpload()
+  while (commentsToday() < comments) recordComment()
+  window.dispatchEvent(new CustomEvent('gc-counts-rebuilt'))
 }
 
 // Silent fetch for the 5-min auto-refresh: compares id sets and only sets
@@ -121,6 +138,7 @@ onMounted(async () => {
   loading.value = true
   try {
     entries.value = await loadEntries()
+    rebuildCountsFromServer()
   } catch (e) {
     loadErr.value = e.message
   } finally {
