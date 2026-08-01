@@ -5,6 +5,13 @@ on:
     branches: [master]
   # Allow manual re-deploys / data rebuilds without a source change.
   workflow_dispatch:
+  # Auto-deploy roughly every 8 hours so newly uploaded data (on the `data`
+  # branch) gets aggregated and published without a manual run or a master
+  # push. Note: GitHub Actions schedule uses UTC; off-the-hour minute to
+  # dodge the global cron crunch and reduce queueing delay. 8h cadence:
+  # 00:37 / 08:37 / 16:37 UTC = 08:37 / 16:37 / 00:37 Beijing time.
+  schedule:
+    - cron: '37 0,8,16 * * *'
 
 permissions:
   contents: read
@@ -32,13 +39,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # 临时移除了 cache 选项，防止错误的本地缓存卡死安装流程
+          cache: npm
 
-      - name: Install Dependencies
-        # 强制清理、显式包含开发依赖、并直接运行纯净安装
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --include=dev
+      - name: Install
+        run: npm ci || npm install
 
       - name: Build
         env:
