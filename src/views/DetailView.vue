@@ -151,13 +151,15 @@ async function submitComment() {
 
 <template>
   <div class="space-y-5" @keydown="onKey" tabindex="0">
-    <!-- back -->
-    <button
-      @click="emit('close')"
-      class="flex items-center gap-1.5 text-sm text-mist-muted hover:text-mist-text transition"
-    >
-      <span class="text-lg">‹</span> 返回
-    </button>
+    <!-- back (sticky: stays at top while scrolling) -->
+    <div class="sticky top-0 z-20 -mx-4 px-4 py-2 -mt-2 app-gradient">
+      <button
+        @click="emit('close')"
+        class="flex items-center gap-1.5 text-sm text-mist-muted hover:text-mist-text transition"
+      >
+        <span class="text-lg">‹</span> 返回
+      </button>
+    </div>
 
     <!-- hero image (tap to zoom) -->
     <div v-if="imgSrc" class="rounded-3xl overflow-hidden cursor-zoom-in" @click="openLightbox">
