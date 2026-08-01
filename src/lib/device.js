@@ -1,9 +1,8 @@
 // Device identity + per-day upload counting, all client-side in localStorage.
-// This is a SOFT limit (clearable / bypassable). Reports are the hard backstop.
+// This is a SOFT limit (clearable / bypassable).
 
 const DEVICE_KEY = 'gc_device_id'
 const COUNT_KEY = (d) => `gc_uploads_${d}`
-const REPORTED_KEY = 'gc_reported'
 
 function today() {
   return new Date().toISOString().slice(0, 10) // YYYY-MM-DD (local-ish; good enough)
@@ -63,17 +62,4 @@ export function recordUpload() {
   const key = COUNT_KEY(today())
   const n = parseInt(localStorage.getItem(key) || '0', 10)
   localStorage.setItem(key, String(n + 1))
-}
-
-// Per-device report tracking so the same device can't spam-report one entry.
-const reportedSet = () => JSON.parse(localStorage.getItem(REPORTED_KEY) || '[]')
-
-export function hasReported(id) {
-  return reportedSet().includes(id)
-}
-
-export function markReported(id) {
-  const set = reportedSet()
-  set.push(id)
-  localStorage.setItem(REPORTED_KEY, JSON.stringify(set))
 }
