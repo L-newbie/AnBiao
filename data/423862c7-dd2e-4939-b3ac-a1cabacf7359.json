@@ -4,10 +4,15 @@
   "createdAt": "2026-08-01T06:35:25.555Z",
   "lat": 40.22517,
   "lng": 116.283537,
-  "city": "北京市",
-  "address": "北京市昌平区南邵镇迎客家园",
-  "description": "很棒",
+  "city": "åäº¬å¸",
+  "address": "åäº¬å¸æå¹³åºåéµéè¿å®¢å®¶å­",
+  "description": "å¾æ£",
   "image": "images/423862c7-dd2e-4939-b3ac-a1cabacf7359.jpg",
   "status": "published",
-  "reports": []
+  "reports": [
+    {
+      "deviceId": "304dc2e6-d0ad-4fbf-ad88-98bc6af71f61",
+      "at": "2026-08-01T06:42:48.587Z"
+    }
+  ]
 }
