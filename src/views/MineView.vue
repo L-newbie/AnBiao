@@ -68,7 +68,7 @@ const locText = (e) => {
 
     <!-- my entries -->
     <section v-if="mine.length" class="space-y-2">
-      <h3 class="font-serif text-lg text-mist-text">我留下的暮色</h3>
+      <h3 class="font-serif text-lg text-mist-text">我的记录</h3>
       <div class="space-y-2">
         <button
           v-for="e in mine"
