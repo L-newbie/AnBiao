@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import Avatar from '../components/Avatar.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
@@ -7,6 +7,7 @@ import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingTo
 const props = defineProps({
   entries: { type: Array, default: () => [] },
 })
+const emit = defineEmits(['open'])
 
 const id = getDeviceId()
 const poeticName = getPoeticName(id)
@@ -16,28 +17,8 @@ const mine = computed(() => props.entries.filter((e) => e.deviceId === id))
 const remaining = remainingToday(config.maxUploadsPerDay)
 const used = uploadsToday()
 
-// Currently-open entry detail (null = closed).
-const active = ref(null)
-
 function imgSrc(e) {
   return e.image ? import.meta.env.BASE_URL + e.image : ''
-}
-
-function openDetail(e) {
-  active.value = e
-}
-function closeDetail() {
-  active.value = null
-}
-function onKey(e) {
-  if (e.key === 'Escape') closeDetail()
-}
-
-const locText = (e) => {
-  const parts = []
-  if (e.city) parts.push(e.city)
-  if (e.address && e.address !== e.city) parts.push(e.address)
-  return parts.join(' · ') || '（无地址）'
 }
 </script>
 
@@ -73,7 +54,7 @@ const locText = (e) => {
         <button
           v-for="e in mine"
           :key="e.id"
-          @click="openDetail(e)"
+          @click="emit('open', e)"
           class="glass w-full rounded-2xl p-3 flex items-center gap-3 text-left hover:brightness-110"
         >
           <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
@@ -85,36 +66,5 @@ const locText = (e) => {
         </button>
       </div>
     </section>
-
-    <!-- detail modal -->
-    <Teleport to="body">
-      <div
-        v-if="active"
-        class="fixed inset-0 z-[1200] flex items-end sm:items-center justify-center p-0 sm:p-4"
-        @keydown="onKey"
-        tabindex="0"
-      >
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm fade-in" @click="closeDetail"></div>
-        <section class="relative w-full sm:max-w-lg glass-strong rounded-t-3xl sm:rounded-3xl overflow-hidden modal-pop">
-          <img v-if="active.image" :src="imgSrc(active)" class="w-full h-56 sm:h-72 object-cover bg-mist-800/40" />
-          <div class="p-5 space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <h2 class="font-serif text-xl text-mist-text leading-snug">{{ locText(active) }}</h2>
-              <button
-                @click="closeDetail"
-                class="rounded-full w-8 h-8 flex items-center justify-center glass text-mist-muted hover:text-mist-text shrink-0"
-              >
-                ✕
-              </button>
-            </div>
-            <p class="text-sm text-mist-muted leading-relaxed whitespace-pre-wrap">{{ active.description }}</p>
-            <p class="text-xs text-mist-muted/70">
-              {{ new Date(active.createdAt).toLocaleString() }}
-              · {{ active.lat.toFixed(4) }}, {{ active.lng.toFixed(4) }}
-            </p>
-          </div>
-        </section>
-      </div>
-    </Teleport>
   </div>
 </template>
