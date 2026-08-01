@@ -128,7 +128,7 @@ async function submit() {
     })
     recordUpload()
     remaining.value = remainingToday(config.maxUploadsPerDay)
-    msg.value = '上传成功！约 1~2 分钟后会在社区公开显示。'
+    msg.value = '上传成功！'
     emit('submitted', {
       id,
       deviceId: getDeviceId(),
