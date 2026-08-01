@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingCommentsToday, recordComment } from '../lib/device.js'
 import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
@@ -82,6 +82,11 @@ const comments = computed(() => {
 
 const myName = computed(() => getPoeticName(getDeviceId()))
 const remaining = ref(remainingCommentsToday(config.maxCommentsPerDay))
+function refreshRemaining() {
+  remaining.value = remainingCommentsToday(config.maxCommentsPerDay)
+}
+onMounted(() => window.addEventListener('gc-counts-rebuilt', refreshRemaining))
+onBeforeUnmount(() => window.removeEventListener('gc-counts-rebuilt', refreshRemaining))
 const text = ref('')
 const busy = ref(false)
 const err = ref('')
