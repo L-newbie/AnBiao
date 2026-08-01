@@ -63,3 +63,20 @@ export function recordUpload() {
   const n = parseInt(localStorage.getItem(key) || '0', 10)
   localStorage.setItem(key, String(n + 1))
 }
+
+// Per-device per-day comment counting (soft limit, like uploads).
+const COMMENT_KEY = (d) => `gc_comments_${d}`
+
+export function commentsToday() {
+  return parseInt(localStorage.getItem(COMMENT_KEY(today())) || '0', 10)
+}
+
+export function remainingCommentsToday(max) {
+  return Math.max(0, max - commentsToday())
+}
+
+export function recordComment() {
+  const key = COMMENT_KEY(today())
+  const n = parseInt(localStorage.getItem(key) || '0', 10)
+  localStorage.setItem(key, String(n + 1))
+}
