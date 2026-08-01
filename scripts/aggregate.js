@@ -24,6 +24,11 @@ function loadEntries() {
     if (!f.endsWith('.json')) continue
     try {
       const entry = JSON.parse(readFileSync(join(dir, f), 'utf8'))
+      // Sort comments by time for stable display. Existing fields (reports,
+      // comments, etc.) are preserved verbatim — nothing is stripped.
+      if (Array.isArray(entry.comments)) {
+        entry.comments.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+      }
       out.push(entry)
     } catch (e) {
       console.warn('skip', f, e.message)
