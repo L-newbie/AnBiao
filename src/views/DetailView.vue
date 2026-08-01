@@ -55,7 +55,19 @@ const navs = computed(() => [
 ])
 
 function onKey(e) {
-  if (e.key === 'Escape') emit('close')
+  if (e.key === 'Escape') {
+    if (lightbox.value) closeLightbox()
+    else emit('close')
+  }
+}
+
+// Full-screen image zoom.
+const lightbox = ref(false)
+function openLightbox() {
+  if (imgSrc.value) lightbox.value = true
+}
+function closeLightbox() {
+  lightbox.value = false
 }
 </script>
 
@@ -69,8 +81,8 @@ function onKey(e) {
       <span class="text-lg">‹</span> 返回
     </button>
 
-    <!-- hero image -->
-    <div v-if="imgSrc" class="rounded-3xl overflow-hidden">
+    <!-- hero image (tap to zoom) -->
+    <div v-if="imgSrc" class="rounded-3xl overflow-hidden cursor-zoom-in" @click="openLightbox">
       <img :src="imgSrc" class="w-full h-56 sm:h-72 object-cover bg-mist-800/40" />
     </div>
 
@@ -102,7 +114,7 @@ function onKey(e) {
 
     <!-- full description -->
     <section>
-      <h2 class="font-serif text-base text-mist-text mb-2">记录</h2>
+      <h2 class="font-serif text-base text-mist-text mb-2">描述</h2>
       <p class="text-sm text-mist-muted leading-relaxed whitespace-pre-wrap">{{ entry.description }}</p>
     </section>
 
