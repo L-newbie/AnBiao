@@ -48,7 +48,7 @@ const timeText = computed(() => {
     </div>
     <div class="p-3 space-y-1.5 flex-1">
       <p class="font-serif text-sm text-mist-text line-clamp-1">{{ locText }}</p>
-      <p class="text-xs text-mist-muted line-clamp-3 leading-relaxed">{{ entry.description }}</p>
+      <p class="text-xs text-mist-muted line-clamp-1 leading-relaxed">{{ entry.description }}</p>
     </div>
     <div class="px-3 pb-3 space-y-2">
       <!-- author + time -->
