@@ -128,7 +128,6 @@ async function submit() {
       description: description.value.trim(),
       image: `images/${id}.jpg`,
       status: 'published',
-      reports: [],
       _local: true,
     })
     setTimeout(close, 900)
