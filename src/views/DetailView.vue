@@ -1,6 +1,8 @@
 <script setup>
-import { computed } from 'vue'
-import { getPoeticName, getAvatar } from '../lib/device.js'
+import { computed, ref } from 'vue'
+import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingCommentsToday, recordComment } from '../lib/device.js'
+import { addComment } from '../lib/github.js'
+import { config } from '../lib/config.js'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -33,7 +35,6 @@ const timeText = computed(() => {
 // on mobile (via the scheme) or falls back to a web map on desktop.
 const lat = computed(() => Number(props.entry.lat))
 const lng = computed(() => Number(props.entry.lng))
-const coord = computed(() => `${lat.value},${lng.value}`)
 
 const navs = computed(() => [
   {
@@ -68,6 +69,78 @@ function openLightbox() {
 }
 function closeLightbox() {
   lightbox.value = false
+}
+
+// ---- Comments ----
+// Optimistic local comments appended on submit; merged with persisted ones.
+const localComments = ref([])
+const persistedComments = computed(() => props.entry.comments || [])
+const comments = computed(() => {
+  // persisted already sorted by aggregate.js; local are newest, on top.
+  return [...localComments.value, ...persistedComments.value]
+})
+
+const myName = computed(() => getPoeticName(getDeviceId()))
+const remaining = ref(remainingCommentsToday(config.maxCommentsPerDay))
+const text = ref('')
+const busy = ref(false)
+const err = ref('')
+const over = computed(() => text.value.length > config.maxCommentLength)
+
+function commentTime(c) {
+  if (!c.createdAt) return ''
+  try {
+    const d = new Date(c.createdAt)
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${mm}-${dd} ${hh}:${mi}`
+  } catch {
+    return c.createdAt
+  }
+}
+
+async function submitComment() {
+  err.value = ''
+  const trimmed = text.value.trim()
+  if (!trimmed) return (err.value = '请输入留言')
+  if (trimmed.length > config.maxCommentLength) return (err.value = `留言不能超过 ${config.maxCommentLength} 字`)
+  if (props.entry._local) return (err.value = '本条尚未通过，暂不能留言')
+  if (remaining.value <= 0) return (err.value = `今日留言已达上限（${config.maxCommentsPerDay} 条）`)
+
+  busy.value = true
+  const comment = {
+    id: crypto.randomUUID(),
+    entryId: props.entry.id,
+    deviceId: getDeviceId(),
+    author: myName.value,
+    text: trimmed,
+    createdAt: new Date().toISOString(),
+    _local: true,
+  }
+  // optimistic
+  localComments.value = [comment, ...localComments.value]
+  text.value = ''
+  try {
+    await addComment(props.entry.id, {
+      id: comment.id,
+      entryId: comment.entryId,
+      deviceId: comment.deviceId,
+      author: comment.author,
+      text: comment.text,
+      createdAt: comment.createdAt,
+    })
+    recordComment()
+    remaining.value = remainingCommentsToday(config.maxCommentsPerDay)
+  } catch (e) {
+    // roll back optimistic comment on failure
+    localComments.value = localComments.value.filter((c) => c.id !== comment.id)
+    text.value = trimmed
+    err.value = e.message
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
@@ -135,5 +208,68 @@ function closeLightbox() {
       </div>
       <p class="mt-2 text-xs text-mist-muted/60 text-center">点击在地图 app 中打开导航（手机会唤起对应 app）</p>
     </section>
+
+    <!-- comments -->
+    <section>
+      <h2 class="font-serif text-base text-mist-text mb-2">留言 · {{ comments.length }}</h2>
+
+      <!-- existing comments -->
+      <div v-if="comments.length" class="space-y-2 mb-3">
+        <div
+          v-for="c in comments"
+          :key="c.id"
+          class="glass rounded-2xl p-3"
+        >
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-serif text-xs text-mist-text">
+              {{ c.author || '匿名' }}
+              <span v-if="c._local" class="text-amber-300/80">· 等待通过</span>
+            </span>
+            <span class="text-[10px] text-mist-muted/70 font-mono shrink-0">{{ commentTime(c) }}</span>
+          </div>
+          <p class="text-sm text-mist-muted leading-relaxed whitespace-pre-wrap break-all">{{ c.text }}</p>
+        </div>
+      </div>
+      <p v-else class="text-xs text-mist-muted/60 mb-3">还没有留言，来说点什么吧</p>
+
+      <!-- comment input -->
+      <div v-if="entry._local" class="text-xs text-amber-300/80">
+        本条尚未通过，暂不能留言
+      </div>
+      <div v-else>
+        <textarea
+          v-model="text"
+          :maxlength="config.maxCommentLength"
+          rows="2"
+          :placeholder="`以「${myName}」的身份留言…（最多 ${config.maxCommentLength} 字）`"
+          class="w-full rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-accent/50 resize-none"
+        ></textarea>
+        <div class="flex items-center justify-between mt-2">
+          <span class="text-[11px]" :class="over ? 'text-rose-glow' : 'text-mist-muted/60'">
+            {{ text.length }}/{{ config.maxCommentLength }} · 今日剩余 {{ remaining }}/{{ config.maxCommentsPerDay }}
+          </span>
+          <button
+            @click="submitComment"
+            :disabled="busy || over || !text.trim() || remaining <= 0"
+            class="rounded-xl bg-gradient-to-r from-rose-soft to-rose-glow px-4 py-1.5 text-sm font-semibold text-white shadow-lg hover:brightness-110 disabled:opacity-50"
+          >
+            {{ busy ? '提交中…' : '留言' }}
+          </button>
+        </div>
+        <p v-if="err" class="mt-1.5 text-[11px] text-rose-glow">{{ err }}</p>
+      </div>
+    </section>
+
+    <!-- full-screen image zoom -->
+    <Teleport to="body">
+      <div
+        v-if="lightbox"
+        class="fixed inset-0 z-[1300] bg-black/90 flex items-center justify-center fade-in"
+        @click="closeLightbox"
+      >
+        <img :src="imgSrc" class="max-w-full max-h-full object-contain" />
+        <span class="absolute top-4 right-4 text-white/70 text-2xl">✕</span>
+      </div>
+    </Teleport>
   </div>
 </template>
