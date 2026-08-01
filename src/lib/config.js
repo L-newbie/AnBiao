@@ -1,28 +1,29 @@
-// Central runtime config. Values are written directly into the bundle
-// (intentionally — see the token exposure note below) rather than injected
-// via Vite env vars, so the build does not depend on .env.local or Actions
-// secrets being configured.
+// Central runtime config. Non-secret values are written directly here.
+// The write token (VITE_DATA_TOKEN) is injected at build time ONLY — it must
+// NEVER be committed to source, because GitHub secret scanning auto-revokes
+// any PAT that appears in a public repo. Keep it in GitHub Actions Secrets.
+
+const env = import.meta.env
 
 export const config = {
   // GitHub repo that holds BOTH the app (master branch) and the data (data branch).
-  owner: 'L-newbie',
-  repo: 'AnBiao',
-  dataBranch: 'data',
-  // Fine-grained PAT. WARNING: baked into the deployed bundle, so it is visible
-  // to anyone who opens the site. Scoped to write the `data` branch of this one
-  // repo only (Contents: read+write on L-newbie/AnBiao).
-  token: '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',
+  owner: env.VITE_GH_OWNER || 'L-newbie',
+  repo: env.VITE_GH_REPO || 'AnBiao',
+  dataBranch: env.VITE_DATA_BRANCH || 'data',
+  // Fine-grained PAT, build-time injected from Actions Secrets (VITE_DATA_TOKEN).
+  // Deliberately not committed here. In the deployed bundle it is still visible
+  // to site visitors, but it is NOT in the repo/source, so it is not auto-revoked.
+  token: env.VITE_DATA_TOKEN || '',
   // Build-time-only URL of the aggregated data.json served by GitHub Pages.
-  dataUrl: (import.meta.env.BASE_URL || '/') + 'data.json',
+  dataUrl: (env.BASE_URL || '/') + 'data.json',
   reportThreshold: 3,
   maxUploadsPerDay: 2,
   maxImageEdge: 1600,
   jpegQuality: 0.8,
   // AMap (高德) JS API — map display, reverse geocoding, geolocation.
-  // Both are baked into the deployed bundle (same exposure class as the data
-  // token). Mitigate with a Referer whitelist in the AMap console.
-  amapKey: 'f46549dbb1c38ae1d653675d7b71ec42',
-  amapSecret: 'a00791977895243e05a890b97e514778',
+  // Build-time injected from Actions Secrets to keep them out of source.
+  amapKey: env.VITE_AMAP_KEY || '',
+  amapSecret: env.VITE_AMAP_SECRET || '',
 }
 
 export const hasWriteToken = () => Boolean(config.token)
