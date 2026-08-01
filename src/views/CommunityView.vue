@@ -10,7 +10,7 @@ const props = defineProps({
   pull: { type: Number, default: 0 },
   newCount: { type: Number, default: 0 },
 })
-const emit = defineEmits(['reported', 'refresh', 'show-new'])
+const emit = defineEmits(['open', 'refresh', 'show-new'])
 
 const cities = computed(() => citiesFromEntries(props.entries))
 
@@ -90,7 +90,7 @@ const pullText = computed(() => {
         v-for="e in filtered"
         :key="e.id"
         :entry="e"
-        @reported="(u) => emit('reported', u)"
+        @open="(entry) => emit('open', entry)"
       />
     </div>
 
