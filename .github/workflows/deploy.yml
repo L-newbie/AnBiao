@@ -19,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source (main)
+      - name: Checkout source (master)
         uses: actions/checkout@v4
 
       - name: Checkout data branch into _data
