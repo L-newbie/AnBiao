@@ -23,6 +23,9 @@ export const config = {
   // Build-time injected from Actions Secrets to keep them out of source.
   amapKey: env.VITE_AMAP_KEY || '',
   amapSecret: env.VITE_AMAP_SECRET || '',
+  // Comments: per-device daily cap and single-comment length cap.
+  maxCommentsPerDay: 5,
+  maxCommentLength: 100,
 }
 
 export const hasWriteToken = () => Boolean(config.token)
