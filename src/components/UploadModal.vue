@@ -20,6 +20,8 @@ const address = ref('')
 const description = ref('')
 const tags = ref([])
 const tagInput = ref('')
+const tagOpen = ref(false)
+const tagRoot = ref(null)
 const busy = ref(false)
 const msg = ref('')
 const err = ref('')
@@ -58,6 +60,7 @@ function reset() {
   description.value = ''
   tags.value = []
   tagInput.value = ''
+  tagOpen.value = false
   busy.value = false
   msg.value = ''
   err.value = ''
@@ -130,6 +133,37 @@ function toggleExisting(tag) {
 }
 function removeTag(tag) {
   tags.value = tags.value.filter((t) => t !== tag)
+}
+
+// Filtered existing-tag suggestions for the dropdown: case-insensitive includes
+// on the current input. Empty input shows all existing tags.
+const filteredTags = computed(() => {
+  const q = tagInput.value.trim().toLowerCase()
+  if (!q) return props.existingTags
+  return props.existingTags.filter((t) => String(t).toLowerCase().includes(q))
+})
+
+// Whether the current input is a brand-new tag (not yet existing) — offered as
+// an "add '<input>'" action in the dropdown so the affordance is explicit.
+const canCreateTag = computed(() => {
+  const q = tagInput.value.trim()
+  return q.length > 0 && !tags.value.includes(q) && !props.existingTags.includes(q)
+})
+
+function closeTagDropdown() {
+  tagOpen.value = false
+}
+
+// Click outside the tag control closes the dropdown (modal already handles
+// Escape for full-close).
+function onTagDocClick(e) {
+  if (tagRoot.value && !tagRoot.value.contains(e.target)) closeTagDropdown()
+}
+onMounted(() => document.addEventListener('click', onTagDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onTagDocClick))
+
+function onTagFocus() {
+  tagOpen.value = true
 }
 
 async function submit() {
@@ -253,28 +287,67 @@ const sizeHint = computed(() => (file.value ? prettyBytes(file.value.size) : '')
             </span>
           </div>
 
-          <!-- free-text input: type a tag, Enter/comma to add -->
-          <input
-            v-model="tagInput"
-            @keydown="onTagKeydown"
-            type="text"
-            placeholder="输入标签，回车或逗号添加…"
-            class="w-full rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-rose-glow/50"
-          />
+          <!-- free-text input doubles as the dropdown trigger; typing filters
+               the existing-tag list below, Enter/comma adds (new or chosen). -->
+          <div ref="tagRoot" class="relative">
+            <input
+              v-model="tagInput"
+              @keydown="onTagKeydown"
+              @focus="onTagFocus"
+              type="text"
+              placeholder="输入搜索已有标签，或直接输入新标签回车添加…"
+              class="w-full rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-rose-glow/50"
+            />
 
-          <!-- existing-tag chips to pick from (hidden when none exist yet) -->
-          <div v-if="existingTags.length" class="flex flex-wrap gap-1.5 mt-2">
-            <button
-              v-for="t in existingTags"
-              :key="t"
-              type="button"
-              @click="toggleExisting(t)"
-              :class="tags.includes(t) ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
-              class="rounded-full px-2.5 py-1 text-xs transition truncate max-w-[10rem]"
-              :title="t"
-            >
-              {{ t }}
-            </button>
+            <!-- dropdown: existing tags (filtered) + an explicit "create" action
+                 for new text. Mirrors TagFilter.vue's panel styling. -->
+            <Transition name="dropdown-expand">
+              <div
+                v-if="tagOpen"
+                class="absolute z-30 mt-1.5 w-full grid"
+              >
+                <div
+                  class="glass-strong rounded-2xl p-2 shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-h-[40vh] overflow-y-auto thin-scroll min-h-0"
+                >
+                  <!-- existing tags grid, filtered by input -->
+                  <div
+                    v-if="filteredTags.length"
+                    class="grid gap-1.5"
+                    style="grid-template-columns: repeat(auto-fill, minmax(96px, 1fr))"
+                  >
+                    <button
+                      v-for="t in filteredTags"
+                      :key="t"
+                      type="button"
+                      @click="toggleExisting(t)"
+                      :class="tags.includes(t) ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
+                      class="rounded-xl px-2.5 py-1.5 text-xs transition truncate"
+                      :title="t"
+                    >
+                      {{ t }}
+                    </button>
+                  </div>
+
+                  <!-- create a brand-new tag from the current input -->
+                  <button
+                    v-if="canCreateTag"
+                    type="button"
+                    @click="addTagFromInput"
+                    class="w-full rounded-xl px-3 py-2 mt-1.5 text-xs text-left glass text-accent hover:brightness-105 transition"
+                  >
+                    + 新建标签「{{ tagInput.trim() }}」
+                  </button>
+
+                  <!-- empty state: nothing matches AND nothing to create -->
+                  <p
+                    v-if="!filteredTags.length && !canCreateTag"
+                    class="text-[11px] text-mist-muted/60 text-center py-2"
+                  >
+                    {{ existingTags.length ? '没有匹配的标签，回车可新建' : '还没有标签，输入后回车创建第一个' }}
+                  </p>
+                </div>
+              </div>
+            </Transition>
           </div>
         </div>
 
