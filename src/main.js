@@ -1,67 +1,240 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-import './style.css'
-import { setupPwa } from './lib/usePwaUpdate.js'
+@import 'tailwindcss';
 
-createApp(App).mount('#app')
+/* ---- 晴空白蓝 (Clear Sky) theme tokens ---- */
+@theme {
+  --font-serif: ui-serif, Georgia, 'Songti SC', 'STSong', 'SimSun',
+    'Noto Serif CJK SC', serif;
 
-// Register the PWA service worker + iOS-safe foreground update re-check.
-setupPwa()
+  /* Surface tones (very light, for subtle layering). */
+  --color-mist-950: #e7f0f7;
+  --color-mist-900: #eaf2f8;
+  --color-mist-800: #dfeaf3;
+  --color-mist-700: #d2e3ef;
+  --color-mist-600: #c2d9e9;
 
-// ---- Mobile zoom lockdown ----
-// viewport `user-scalable=no` + touch-action: manipulation cover most cases,
-// but iOS Safari still allows pinch-zoom via gesture events and ignores the
-// meta on some versions. Block the residual paths: multi-touch move/gesture
-// events and the classic double-tap-to-zoom. Inputs/textareas are exempt so
-// typing and selection stay usable. Keep handlers passive where harmless, but
-// pinch-zoom must call preventDefault() so those listeners are non-passive.
-function disableZoom() {
-  // Pinch (>=2 fingers moving) and the iOS-specific gesture events.
-  document.addEventListener(
-    'gesturestart',
-    (e) => e.preventDefault(),
-    { passive: false },
-  )
-  document.addEventListener(
-    'gesturechange',
-    (e) => e.preventDefault(),
-    { passive: false },
-  )
-  document.addEventListener(
-    'touchmove',
-    (e) => {
-      if (e.touches && e.touches.length > 1) e.preventDefault()
-    },
-    { passive: false },
-  )
-  // Double-tap zoom: swallow the second tap within ~300ms of the first when it
-  // lands on a non-interactive element.
-  let lastTap = 0
-  document.addEventListener(
-    'touchend',
-    (e) => {
-      const now = e.timeStamp
-      if (now - lastTap <= 300) {
-        const t = e.target
-        const interactive =
-          t && (t.closest('input, textarea, select, button, a, [role="button"]'))
-        if (!interactive) e.preventDefault()
-      }
-      lastTap = now
-    },
-    { passive: false },
-  )
-  // Guard against programmatic viewport scaling via Ctrl/+ wheel on desktop-ish
-  // touchscreens; harmless elsewhere.
-  document.addEventListener(
-    'keydown',
-    (e) => {
-      if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
-        e.preventDefault()
-      }
-    },
-    { passive: false },
-  )
+  /* Accent: clear cyan + sea blue. */
+  --color-accent: #0ea5b7;
+  --color-accent-2: #2563eb;
+  /* Violet middle stop for the vibrant gradient title (青→紫→蓝). */
+  --color-accent-3: #7c3aed;
+  /* Kept aliases for any lingering rose-* references (mapped to accent). */
+  --color-rose-glow: #0ea5b7;
+  --color-rose-soft: #2563eb;
+
+  /* Text: deep blue-grey, readable on light glass. */
+  --color-mist-text: #1e3a52;
+  --color-mist-muted: #5c7a93;
 }
 
-disableZoom()
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  color: var(--color-mist-text);
+  background: #f0f6fb; /* fallback before the gradient paints */
+  overflow-x: hidden;
+}
+
+/* iOS auto-zooms any focused input with font-size < 16px. Force 16px+ on form
+   controls so focusing an input never scales the page up. !important needed
+   to beat Tailwind v4's text-sm/text-xs atomic classes. */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
+/* Full-page clear-sky gradient, fixed so it doesn't scroll. */
+.app-gradient {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(14, 165, 183, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(37, 99, 235, 0.08), transparent 55%),
+    linear-gradient(160deg, #f0f6fb 0%, #e6eff7 45%, #dceaf3 100%);
+  background-attachment: fixed;
+  min-height: 100%;
+}
+
+/* Frosted glass surfaces — bright & transparent on a light ground. */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* ---- Global button / interactive feedback ----
+   Every button gets a smooth transition and a tactile press; chip-like links
+   and [role=button] share the same feel. */
+button,
+[role='button'],
+a.btn {
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    filter 0.18s ease;
+  cursor: pointer;
+}
+button:active:not(:disabled),
+[role='button']:active,
+a.btn:active {
+  transform: scale(0.96);
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Tab-switch view fade (enter/leave). */
+.view-fade-enter-active,
+.view-fade-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+.view-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.view-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Soft glowing FAB pulse. */
+@keyframes fab-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 183, 0.45), 0 8px 24px rgba(30, 58, 82, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(14, 165, 183, 0), 0 8px 28px rgba(30, 58, 82, 0.2);
+  }
+}
+.fab-pulse {
+  animation: fab-pulse 2.4s ease-in-out infinite;
+}
+
+/* Vibrant gradient title shimmer: slides the multi-stop gradient across the
+   clipped text. background-size 200% + animated background-position. */
+@keyframes title-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+.title-vibrant {
+  background-size: 200% auto;
+  animation: title-shimmer 5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-vibrant {
+    animation: none;
+  }
+}
+
+/* Modal entrance. */
+@keyframes modal-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.modal-pop {
+  animation: modal-pop 0.22s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Spinner rotation for the refresh icon while loading. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+/* Thin custom scrollbar for chip rows / modal content. */
+.thin-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 183, 0.3);
+  border-radius: 9999px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Line clamp helpers (Tailwind v4 ships these, kept for safety). */
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-1 {
+  -webkit-line-clamp: 1;
+}
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+.line-clamp-3 {
+  -webkit-line-clamp: 3;
+}
+
+/* ---- Pinch-zoom / double-tap-zoom lockdown (mobile) ----
+   The viewport meta (user-scalable=no) is ignored by some browsers (notably
+   iOS Safari since ~iOS 10), so reinforce it here: block multi-touch gestures
+   and double-tap-to-zoom. touch-action: manipulation allows taps/scroll but
+   kills pinch + double-tap zoom. Inputs stay 'auto' so typing/selection still
+   behave naturally inside text fields. */
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+body {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  /* Kill the 300ms double-tap zoom window entirely. */
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+input,
+textarea,
+select {
+  touch-action: auto;
+}
