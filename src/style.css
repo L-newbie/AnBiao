@@ -97,20 +97,29 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Tab-switch view fade (enter/leave). */
-.view-fade-enter-active,
-.view-fade-leave-active {
+/* Dropdown expand/collapse for the city & tag filter panels: a smooth
+   height grow/shrink with NO vertical translate (translateY caused the
+   "shake" the old view-fade produced). grid-template-rows 0fr↔1fr animates
+   the panel's height from collapsed to its natural content height without
+   guessing a max-height. opacity fades softly on top. */
+.dropdown-expand-enter-active,
+.dropdown-expand-leave-active {
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+    grid-template-rows 0.22s ease,
+    opacity 0.22s ease;
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
 }
-.view-fade-enter-from {
+.dropdown-expand-enter-from,
+.dropdown-expand-leave-to {
+  grid-template-rows: 0fr;
   opacity: 0;
-  transform: translateY(6px);
 }
-.view-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
+.dropdown-expand-enter-to,
+.dropdown-expand-leave-from {
+  grid-template-rows: 1fr;
+  opacity: 1;
 }
 
 /* Soft glowing FAB pulse. */
@@ -213,4 +222,28 @@ button:disabled {
 }
 .line-clamp-3 {
   -webkit-line-clamp: 3;
+}
+
+/* ---- Pinch-zoom / double-tap-zoom lockdown (mobile) ----
+   The viewport meta (user-scalable=no) is ignored by some browsers (notably
+   iOS Safari since ~iOS 10), so reinforce it here: block multi-touch gestures
+   and double-tap-to-zoom. touch-action: manipulation allows taps/scroll but
+   kills pinch + double-tap zoom. Inputs stay 'auto' so typing/selection still
+   behave naturally inside text fields. */
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+body {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  /* Kill the 300ms double-tap zoom window entirely. */
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+input,
+textarea,
+select {
+  touch-action: auto;
 }
