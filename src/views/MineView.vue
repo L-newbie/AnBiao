@@ -6,6 +6,7 @@ import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingTo
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
+  myComments: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['open'])
 
@@ -25,6 +26,33 @@ function imgSrc(e) {
   const img = e.image
   if (!img) return ''
   return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
+}
+
+// Compact comment timestamp, matching DetailView's commentTime format.
+function commentTime(c) {
+  if (!c.createdAt) return ''
+  try {
+    const d = new Date(c.createdAt)
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${mm}-${dd} ${hh}:${mi}`
+  } catch {
+    return c.createdAt
+  }
+}
+
+// Where each of my comments landed — for the card subtitle + jump target.
+function entryOf(comment) {
+  return props.entries.find((e) => e.id === comment.entryId)
+}
+
+function openComment(comment) {
+  const entry = entryOf(comment)
+  // Only openable if the entry itself is live in the feed. A pending comment
+  // on an entry we can't see (or one not yet aggregated) has nowhere to go.
+  if (entry) emit('open', entry)
 }
 </script>
 
@@ -69,6 +97,32 @@ function imgSrc(e) {
             <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
           </div>
           <span class="text-mist-muted/60 text-sm shrink-0">›</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- my comments (live + still-pending ones, flagged 等待通过) -->
+    <section v-if="myComments.length" class="space-y-2">
+      <h3 class="font-serif text-lg text-mist-text">我的留言 · {{ myComments.length }}</h3>
+      <div class="space-y-2">
+        <button
+          v-for="c in myComments"
+          :key="c.id"
+          @click="openComment(c)"
+          :disabled="!entryOf(c)"
+          class="glass w-full rounded-2xl p-3 flex items-start gap-3 text-left hover:brightness-110 disabled:opacity-60 disabled:cursor-default"
+        >
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-mist-muted leading-relaxed line-clamp-2 break-all">{{ c.text }}</p>
+            <p class="text-xs text-mist-muted/70 mt-1 line-clamp-1">
+              {{ commentTime(c) }} · {{ entryOf(c) ? (entryOf(c).city || entryOf(c).address || '该记录') : '记录待审核' }}
+            </p>
+          </div>
+          <span
+            v-if="c._local"
+            class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
+          >等待通过</span>
+          <span v-else class="text-mist-muted/60 text-sm shrink-0">›</span>
         </button>
       </div>
     </section>
