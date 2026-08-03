@@ -1,22 +1,30 @@
 <script setup>
 import { computed } from 'vue'
 import CityFilter from '../components/CityFilter.vue'
+import TagFilter from '../components/TagFilter.vue'
 import EntryCard from '../components/EntryCard.vue'
 import { citiesFromEntries, filterByCity, useCityFilter } from '../lib/useCityFilter.js'
+import { tagsFromEntries, filterByTags } from '../lib/useTagFilter.js'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   pull: { type: Number, default: 0 },
-  newCount: { type: Number, default: 0 },
+  selectedTags: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['open', 'refresh', 'show-new'])
+const emit = defineEmits(['open', 'refresh', 'update:selectedTags'])
 
 const cities = computed(() => citiesFromEntries(props.entries))
+const tagOptions = computed(() => tagsFromEntries(props.entries))
 
 const { selected } = useCityFilter(computed(() => cities.value))
 
-const filtered = computed(() => filterByCity(props.entries, selected.value))
+// City and tag filters are independent (an entry must pass both). City stays
+// self-contained (selected owned here via useCityFilter); tag selection is
+// controlled from App.vue so the detail view can set it.
+const filtered = computed(() =>
+  filterByTags(filterByCity(props.entries, selected.value), props.selectedTags),
+)
 
 // Pull indicator state: rotating spinner while refreshing, downward chevron
 // while arming (pull < threshold), chevron flipped when ready to release.
@@ -51,21 +59,6 @@ const pullText = computed(() => {
       <span v-if="pullText" class="text-[11px] text-mist-muted mt-0.5">{{ pullText }}</span>
     </div>
 
-    <!-- new content notice -->
-    <Transition name="view-fade">
-      <button
-        v-if="newCount > 0"
-        @click="emit('show-new')"
-        class="w-full glass-strong rounded-2xl px-4 py-2.5 flex items-center justify-between text-sm text-accent hover:brightness-105"
-      >
-        <span class="flex items-center gap-2">
-          <span class="inline-block w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-          有 {{ newCount }} 条新内容 · 点击查看
-        </span>
-        <span class="text-mist-muted">›</span>
-      </button>
-    </Transition>
-
     <!-- page header -->
     <header class="pb-1 text-center">
       <h1
@@ -80,6 +73,13 @@ const pullText = computed(() => {
 
     <!-- city filter -->
     <CityFilter :cities="cities" v-model="selected" />
+
+    <!-- tag filter (controlled by App so the detail view can drive it) -->
+    <TagFilter
+      :tags="tagOptions"
+      :modelValue="selectedTags"
+      @update:modelValue="emit('update:selectedTags', $event)"
+    />
 
     <!-- count -->
     <div class="flex items-center justify-between">
@@ -100,7 +100,7 @@ const pullText = computed(() => {
       v-if="!loading && filtered.length === 0 && entries.length > 0"
       class="text-sm text-mist-muted text-center py-8"
     >
-      当前城市暂无记录，换一个城市看看？
+      当前筛选条件下暂无记录，换个条件看看？
     </p>
   </div>
 </template>
