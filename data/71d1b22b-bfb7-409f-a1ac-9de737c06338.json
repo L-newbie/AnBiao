@@ -11,5 +11,15 @@
     "测试"
   ],
   "image": "images/71d1b22b-bfb7-409f-a1ac-9de737c06338.jpg",
-  "status": "published"
+  "status": "published",
+  "comments": [
+    {
+      "id": "2a3d7ec8-d4f5-49ba-a2d9-61b46b60e7d6",
+      "entryId": "71d1b22b-bfb7-409f-a1ac-9de737c06338",
+      "deviceId": "fp-f4cdbd1e",
+      "author": "暮色听雨",
+      "text": "哈喽",
+      "createdAt": "2026-08-03T10:37:02.580Z"
+    }
+  ]
 }
