@@ -71,15 +71,20 @@ const pullText = computed(() => {
       <div class="mt-4 h-px w-24 mx-auto bg-gradient-to-r from-transparent via-accent-2/40 to-transparent"></div>
     </header>
 
-    <!-- city filter -->
-    <CityFilter :cities="cities" v-model="selected" />
+    <!-- city + tag filters, side by side. grid-cols-2 keeps them on one row
+         (city left, tag right); bump to grid-cols-3 / flex-wrap when more
+         filter chips are added later. -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- city filter -->
+      <CityFilter :cities="cities" v-model="selected" />
 
-    <!-- tag filter (controlled by App so the detail view can drive it) -->
-    <TagFilter
-      :tags="tagOptions"
-      :modelValue="selectedTags"
-      @update:modelValue="emit('update:selectedTags', $event)"
-    />
+      <!-- tag filter (controlled by App so the detail view can drive it) -->
+      <TagFilter
+        :tags="tagOptions"
+        :modelValue="selectedTags"
+        @update:modelValue="emit('update:selectedTags', $event)"
+      />
+    </div>
 
     <!-- count -->
     <div class="flex items-center justify-between">
