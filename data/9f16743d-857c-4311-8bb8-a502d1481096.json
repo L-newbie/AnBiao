@@ -14,5 +14,15 @@
     "ttttttttttt"
   ],
   "image": "images/9f16743d-857c-4311-8bb8-a502d1481096.jpg",
-  "status": "published"
+  "status": "published",
+  "comments": [
+    {
+      "id": "7f5119a2-b2c8-4d8b-b94a-21da3ca5e1bc",
+      "entryId": "9f16743d-857c-4311-8bb8-a502d1481096",
+      "deviceId": "fp-f4cdbd1e",
+      "author": "暮色听雨",
+      "text": "what",
+      "createdAt": "2026-08-03T07:35:57.269Z"
+    }
+  ]
 }
