@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingCommentsToday, recordComment } from '../lib/device.js'
 import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
+import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -80,11 +81,20 @@ function closeLightbox() {
 
 // ---- Comments ----
 // Optimistic local comments appended on submit; merged with persisted ones.
-const localComments = ref([])
+// Seeded from pendingCommentsFor so a page refresh / re-open restores the
+// commenter's own pending comments (flagged "等待通过"), mirroring how uploads
+// survive a refresh via pending.js. Others' comments only appear once they're
+// aggregated into entry.comments (after a deploy).
+const localComments = ref(pendingCommentsFor(props.entry.id))
 const persistedComments = computed(() => props.entry.comments || [])
 const comments = computed(() => {
   // persisted already sorted by aggregate.js; local are newest, on top.
-  return [...localComments.value, ...persistedComments.value]
+  // Drop a local comment once its id shows up in the persisted set — that
+  // means it's been aggregated (promoted) and the server copy replaces it,
+  // so we never render both the _local and the live version.
+  const persistedIds = new Set(persistedComments.value.map((c) => c.id))
+  const live = localComments.value.filter((c) => !persistedIds.has(c.id))
+  return [...live, ...persistedComments.value]
 })
 
 const myName = computed(() => getPoeticName(getDeviceId()))
@@ -133,6 +143,10 @@ async function submitComment() {
   }
   // optimistic
   localComments.value = [comment, ...localComments.value]
+  // Persist so a refresh / re-open keeps showing it (mirrors pending entries).
+  addPendingComment(props.entry.id, comment)
+  // Notify App so MineView's "我的留言" re-reads the pending store.
+  window.dispatchEvent(new CustomEvent('gc-comments-changed'))
   text.value = ''
   try {
     await addComment(props.entry.id, {
@@ -148,6 +162,8 @@ async function submitComment() {
   } catch (e) {
     // roll back optimistic comment on failure
     localComments.value = localComments.value.filter((c) => c.id !== comment.id)
+    removePendingComment(comment.id)
+    window.dispatchEvent(new CustomEvent('gc-comments-changed'))
     text.value = trimmed
     err.value = e.message
   } finally {
