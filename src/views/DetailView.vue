@@ -7,9 +7,16 @@ import { config } from '../lib/config.js'
 const props = defineProps({
   entry: { type: Object, required: true },
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'filter-by-tag'])
 
-const imgSrc = computed(() => (props.entry.image ? import.meta.env.BASE_URL + props.entry.image : ''))
+// Pending/optimistic entries store the full raw URL on the data branch (the
+// dist/images copy only ships after a master deploy); aggregated entries store
+// a relative path. Use absolute URLs verbatim, prefix relative ones with BASE_URL.
+const imgSrc = computed(() => {
+  const img = props.entry.image
+  if (!img) return ''
+  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
+})
 
 const authorName = computed(() => getPoeticName(props.entry.deviceId || ''))
 const avatar = computed(() => getAvatar(props.entry.deviceId || ''))
@@ -196,6 +203,21 @@ async function submitComment() {
     <section>
       <h2 class="font-serif text-base text-mist-text mb-2">描述</h2>
       <p class="text-sm text-mist-muted leading-relaxed whitespace-pre-wrap">{{ entry.description }}</p>
+    </section>
+
+    <!-- tags: clickable to filter the feed by this tag -->
+    <section v-if="Array.isArray(entry.tags) && entry.tags.length">
+      <h2 class="font-serif text-base text-mist-text mb-2">标签</h2>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="t in entry.tags"
+          :key="t"
+          @click="emit('filter-by-tag', t)"
+          class="rounded-full px-3 py-1.5 text-xs transition glass text-accent hover:brightness-105"
+        >
+          #{{ t }}
+        </button>
+      </div>
     </section>
 
     <!-- navigation -->
