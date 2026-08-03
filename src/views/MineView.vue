@@ -17,8 +17,14 @@ const mine = computed(() => props.entries.filter((e) => e.deviceId === id))
 const remaining = remainingToday(config.maxUploadsPerDay)
 const used = uploadsToday()
 
+// Pending (_local) entries carry an absolute data-branch raw URL (their image
+// isn't in dist/images until a deploy); aggregated entries carry a relative
+// path. Use absolute URLs verbatim, prefix relative ones with BASE_URL —
+// matches EntryCard/DetailView.
 function imgSrc(e) {
-  return e.image ? import.meta.env.BASE_URL + e.image : ''
+  const img = e.image
+  if (!img) return ''
+  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
 }
 </script>
 
