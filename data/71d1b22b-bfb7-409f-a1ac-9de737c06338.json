@@ -1,0 +1,15 @@
+{
+  "id": "71d1b22b-bfb7-409f-a1ac-9de737c06338",
+  "deviceId": "fp-f4cdbd1e",
+  "createdAt": "2026-08-03T08:39:25.440Z",
+  "lat": 40.078719,
+  "lng": 116.187468,
+  "city": "北京市",
+  "address": "北京市海淀区苏家坨镇稻香湖路北京实创科技园开发建设股份有限公司",
+  "description": "测试",
+  "tags": [
+    "测试"
+  ],
+  "image": "images/71d1b22b-bfb7-409f-a1ac-9de737c06338.jpg",
+  "status": "published"
+}
