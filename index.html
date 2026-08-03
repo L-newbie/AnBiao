@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f0f6fb" />
     <title>暗标 AnBiao</title>
-    <link rel="icon" href="data:," />
+    <!-- Icons & PWA metas. HREFs are RELATIVE (no leading slash) so they
+         resolve under the /AnBiao/ Pages subpath, not the user root.
+         vite-plugin-pwa injects <link rel="manifest"> automatically. -->
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="暗标" />
   </head>
   <body class="text-mist-text" style="background: #f0f6fb">
     <div id="app"></div>
