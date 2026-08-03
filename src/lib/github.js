@@ -39,7 +39,7 @@ async function putFile(path, contentB64, message, sha) {
 }
 
 // Upload one image + its metadata JSON as two new files. UUID paths => no race.
-export async function uploadEntry({ id, deviceId, lat, lng, city, address, description, imageB64, imageExt }) {
+export async function uploadEntry({ id, deviceId, lat, lng, city, address, description, tags, imageB64, imageExt }) {
   const imgPath = `images/${id}.${imageExt}`
   const jsonPath = `data/${id}.json`
   await putFile(imgPath, imageB64, `chore: add image ${id}`)
@@ -52,6 +52,7 @@ export async function uploadEntry({ id, deviceId, lat, lng, city, address, descr
     city,
     address,
     description,
+    tags: Array.isArray(tags) ? tags : [],
     image: imgPath,
     status: 'published',
   }
