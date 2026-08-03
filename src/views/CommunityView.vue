@@ -71,7 +71,6 @@ const pullText = computed(() => {
       <h1 class="font-serif text-4xl sm:text-5xl text-mist-text tracking-wide font-semibold leading-tight">
         暗标
       </h1>
-      <p class="font-serif text-base text-accent mt-1 tracking-wide">呵护你的腰子</p>
       <div class="mt-4 h-px w-full bg-gradient-to-r from-transparent via-accent/30 to-transparent"></div>
     </header>
 
@@ -81,7 +80,6 @@ const pullText = computed(() => {
     <!-- count -->
     <div class="flex items-center justify-between">
       <h2 class="font-serif text-lg text-mist-text">公开记录 · {{ filtered.length }}</h2>
-      <span class="text-xs text-mist-muted/70">每 5 分钟自动更新</span>
     </div>
 
     <!-- grid -->
