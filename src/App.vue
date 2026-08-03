@@ -12,6 +12,7 @@ import { getDeviceId, rebuildUploadsToday, rebuildCommentsToday, recordUpload, r
 import { needRefresh, offlineReady, applyUpdate, dismissOffline } from './lib/usePwaUpdate.js'
 import { useTagFilter, tagsFromEntries } from './lib/useTagFilter.js'
 import { loadPending, addPending, prunePending } from './lib/pending.js'
+import { prunePendingComments, loadPendingComments } from './lib/pendingComments.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 15 * 1000 // 15 seconds
@@ -49,6 +50,11 @@ const entries = ref([])
 const loading = ref(true)
 const loadErr = ref('')
 
+// Bumped when a comment is added/removed so myComments (which reads the
+// non-reactive localStorage pending store) re-reads it. DetailView dispatches
+// 'gc-comments-changed' after a submit/rollback; we bump here to recompute.
+const commentsVersion = ref(0)
+
 let autoTimer = null
 
 // Show newest first. (The report/hidden flow was removed, so every published
@@ -64,6 +70,29 @@ const visible = computed(() =>
 // view can set it; useTagFilter gives persistence + stale-tag pruning for free.
 const allTags = computed(() => tagsFromEntries(visible.value))
 const { selected: selectedTags } = useTagFilter(allTags)
+
+// "My comments" for the Mine tab: this device's comments across the live feed,
+// PLUS their own still-pending (not-yet-aggregated) comments from localStorage.
+// Pending ones carry entryId + _local so MineView can badge them 等待通过 and
+// jump to the right detail.
+const myComments = computed(() => {
+  // Touch commentsVersion so a localStorage-only change (pending comment added/
+  // removed) still triggers recompute — loadPendingComments isn't reactive.
+  void commentsVersion.value
+  const id = getDeviceId()
+  const out = []
+  for (const e of visible.value) {
+    if (!Array.isArray(e.comments)) continue
+    for (const c of e.comments) {
+      if (c && c.deviceId === id) out.push({ ...c, entryId: e.id, _local: false })
+    }
+  }
+  for (const c of loadPendingComments()) {
+    if (c && c.deviceId === id) out.push({ ...c, _local: true })
+  }
+  // Newest first.
+  return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+})
 
 // Click a tag chip on the detail view: filter the feed by that single tag and
 // return to the community tab. The tag came from an entry's tags (and lives in
@@ -127,6 +156,9 @@ async function silentFetch() {
 function mergeKeepingLocal(current, fresh) {
   const freshIds = new Set(fresh.map((e) => e.id))
   prunePending([...freshIds])
+  // Comments aggregated into the live feed are promoted out of pending too —
+  // drop them so they stop showing as "等待通过" once the server copy arrives.
+  prunePendingComments(fresh)
   const locals = current.filter((e) => e._local && !freshIds.has(e.id))
   return [...locals, ...fresh]
 }
@@ -150,6 +182,12 @@ function onSubmitted(entry) {
   addPending(entry)
 }
 
+// Re-read the (non-reactive) pending-comments store when a comment is added or
+// rolled back, so MineView's "我的留言" reflects it without a reload.
+function onCommentsChanged() {
+  commentsVersion.value++
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -169,11 +207,13 @@ onMounted(async () => {
     loading.value = false
   }
   autoTimer = setInterval(silentFetch, AUTO_REFRESH_MS)
+  window.addEventListener('gc-comments-changed', onCommentsChanged)
 })
 
 onBeforeUnmount(() => {
   clearInterval(autoTimer)
   if (offlineTimer.value) clearTimeout(offlineTimer.value)
+  window.removeEventListener('gc-comments-changed', onCommentsChanged)
 })
 </script>
 
@@ -198,7 +238,7 @@ onBeforeUnmount(() => {
           @open="openDetail"
           @refresh="onPullRefresh"
         />
-        <MineView v-else key="mine" :entries="visible" @open="openDetail" />
+        <MineView v-else key="mine" :entries="visible" :myComments="myComments" @open="openDetail" />
       </Transition>
     </main>
 
