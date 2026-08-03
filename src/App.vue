@@ -9,12 +9,24 @@ import DetailView from './views/DetailView.vue'
 import { loadEntries } from './lib/github.js'
 import { usePullRefresh } from './lib/usePullRefresh.js'
 import { getDeviceId, rebuildUploadsToday, rebuildCommentsToday, recordUpload, recordComment, uploadsToday, commentsToday } from './lib/device.js'
+import { needRefresh, offlineReady, applyUpdate, dismissOffline } from './lib/usePwaUpdate.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
 const tab = ref(localStorage.getItem(TAB_KEY) || 'community')
 const modalOpen = ref(false)
+
+// PWA update toast: "已可离线使用" auto-dismisses after a short beat.
+const offlineTimer = ref(null)
+watch(offlineReady, (ready) => {
+  if (ready) {
+    offlineTimer.value = setTimeout(() => dismissOffline(), 2500)
+  } else if (offlineTimer.value) {
+    clearTimeout(offlineTimer.value)
+    offlineTimer.value = null
+  }
+})
 
 // Currently-open detail entry (null = no detail view). Opening a detail
 // switches the main area to DetailView; closing returns to the active tab.
@@ -149,6 +161,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearInterval(autoTimer)
+  if (offlineTimer.value) clearTimeout(offlineTimer.value)
 })
 </script>
 
@@ -182,5 +195,29 @@ onBeforeUnmount(() => {
     <TabBar v-if="!detail" v-model="tab" />
 
     <UploadModal v-model:open="modalOpen" @submitted="onSubmitted" />
+
+    <!-- PWA update / offline-ready toast -->
+    <Transition name="view-fade">
+      <div
+        v-if="needRefresh || offlineReady"
+        class="fixed inset-x-0 bottom-20 flex justify-center px-4 z-50 pointer-events-none"
+      >
+        <button
+          v-if="needRefresh"
+          @click="applyUpdate"
+          class="glass-strong rounded-2xl px-5 py-3 flex items-center gap-2 text-sm text-accent shadow-lg pointer-events-auto hover:brightness-105"
+        >
+          <span class="inline-block w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+          内容已更新 · 刷新查看
+        </button>
+        <div
+          v-else
+          class="glass-strong rounded-2xl px-5 py-3 flex items-center gap-2 text-sm text-mist-text shadow-lg"
+        >
+          <span class="inline-block w-2 h-2 rounded-full bg-accent"></span>
+          已可离线使用
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
