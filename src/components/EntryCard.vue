@@ -7,7 +7,14 @@ const props = defineProps({
 })
 const emit = defineEmits(['open'])
 
-const imgSrc = computed(() => import.meta.env.BASE_URL + props.entry.image)
+// Pending entries carry an absolute data-branch raw URL (their image isn't in
+// dist/images until a deploy); aggregated entries carry a relative path. Use
+// absolute URLs verbatim, prefix relative ones with BASE_URL.
+const imgSrc = computed(() => {
+  const img = props.entry.image
+  if (!img) return ''
+  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
+})
 const locText = computed(() => {
   const parts = []
   if (props.entry.city) parts.push(props.entry.city)
