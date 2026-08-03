@@ -8,6 +8,7 @@ import MapModal from './MapModal.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
+  existingTags: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:open', 'submitted', 'close'])
 
@@ -17,6 +18,8 @@ const point = ref(null)
 const city = ref('')
 const address = ref('')
 const description = ref('')
+const tags = ref([])
+const tagInput = ref('')
 const busy = ref(false)
 const msg = ref('')
 const err = ref('')
@@ -53,6 +56,8 @@ function reset() {
   city.value = ''
   address.value = ''
   description.value = ''
+  tags.value = []
+  tagInput.value = ''
   busy.value = false
   msg.value = ''
   err.value = ''
@@ -98,6 +103,35 @@ const locText = computed(() => {
   return parts.join(' · ')
 })
 
+// ---- Tags ----
+// Add tags from free text (Enter or comma). Existing-pick chips toggle below.
+function addTagFromInput() {
+  const raw = tagInput.value.trim()
+  if (!raw) return
+  // Allow comma-separated batch entry: "猫, 咖啡馆" -> two tags.
+  const parts = raw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+  for (const p of parts) {
+    if (!tags.value.includes(p)) tags.value = [...tags.value, p]
+  }
+  tagInput.value = ''
+}
+function onTagKeydown(e) {
+  if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+    e.preventDefault()
+    addTagFromInput()
+  } else if (e.key === 'Backspace' && !tagInput.value && tags.value.length) {
+    // Backspace on empty input removes the last tag.
+    tags.value = tags.value.slice(0, -1)
+  }
+}
+function toggleExisting(tag) {
+  if (tags.value.includes(tag)) tags.value = tags.value.filter((t) => t !== tag)
+  else tags.value = [...tags.value, tag]
+}
+function removeTag(tag) {
+  tags.value = tags.value.filter((t) => t !== tag)
+}
+
 async function submit() {
   err.value = ''
   msg.value = ''
@@ -115,6 +149,8 @@ async function submit() {
   try {
     const { base64 } = await compressImage(file.value, config.maxImageEdge, config.jpegQuality)
     const id = crypto.randomUUID()
+    const imageExt = 'jpg'
+    const finalTags = [...tags.value]
     await uploadEntry({
       id,
       deviceId: getDeviceId(),
@@ -123,12 +159,18 @@ async function submit() {
       city: city.value.trim(),
       address: address.value.trim(),
       description: description.value.trim(),
+      tags: finalTags,
       imageB64: base64,
-      imageExt: 'jpg',
+      imageExt,
     })
     recordUpload()
     remaining.value = remainingToday(config.maxUploadsPerDay)
     msg.value = '上传成功！'
+    // Optimistic entry: image points at the data branch's raw URL (NOT the
+    // dist/images relative path), because data.json only rebuilds on a master
+    // deploy — until then the only live copy of the image is on the data
+    // branch. This keeps the picture visible after a page refresh.
+    const imageUrl = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.dataBranch}/images/${id}.${imageExt}`
     emit('submitted', {
       id,
       deviceId: getDeviceId(),
@@ -138,7 +180,8 @@ async function submit() {
       city: city.value.trim(),
       address: address.value.trim(),
       description: description.value.trim(),
-      image: `images/${id}.jpg`,
+      tags: finalTags,
+      image: imageUrl,
       status: 'published',
       _local: true,
     })
@@ -187,6 +230,52 @@ const sizeHint = computed(() => (file.value ? prettyBytes(file.value.size) : '')
             placeholder="这里发生了什么 / 有什么值得记录的…"
             class="w-full rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-rose-glow/50 resize-none"
           ></textarea>
+        </div>
+
+        <!-- tags: pick from existing + add your own -->
+        <div>
+          <label class="block text-sm font-medium text-mist-muted mb-1.5">标签</label>
+
+          <!-- selected tags as removable chips -->
+          <div v-if="tags.length" class="flex flex-wrap gap-1.5 mb-2">
+            <span
+              v-for="t in tags"
+              :key="t"
+              class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-soft to-rose-glow text-white text-xs px-2.5 py-1"
+            >
+              {{ t }}
+              <button
+                type="button"
+                @click="removeTag(t)"
+                class="text-white/80 hover:text-white leading-none"
+                aria-label="移除标签"
+              >✕</button>
+            </span>
+          </div>
+
+          <!-- free-text input: type a tag, Enter/comma to add -->
+          <input
+            v-model="tagInput"
+            @keydown="onTagKeydown"
+            type="text"
+            placeholder="输入标签，回车或逗号添加…"
+            class="w-full rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-rose-glow/50"
+          />
+
+          <!-- existing-tag chips to pick from (hidden when none exist yet) -->
+          <div v-if="existingTags.length" class="flex flex-wrap gap-1.5 mt-2">
+            <button
+              v-for="t in existingTags"
+              :key="t"
+              type="button"
+              @click="toggleExisting(t)"
+              :class="tags.includes(t) ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
+              class="rounded-full px-2.5 py-1 text-xs transition truncate max-w-[10rem]"
+              :title="t"
+            >
+              {{ t }}
+            </button>
+          </div>
         </div>
 
         <!-- two action buttons: photo + location -->
