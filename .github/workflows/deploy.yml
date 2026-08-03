@@ -3,8 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-  # Allow manual re-deploys / data rebuilds without a source change.
-  workflow_dispatch:
+  workflow_dispatch: 
+  schedule:
+    - cron: '12 */3 * * *' # 每 3 小时的第 12 分钟执行一次（如 03:12, 06:12 等），避开整点拥堵
 
 permissions:
   contents: read
@@ -19,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source (master)
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Checkout data branch into _data
@@ -32,30 +33,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          # 注意：已移除 cache: 'npm'，避免因缺少 package-lock.json 导致 Action 报错挂掉
 
-      # vite & the Vue/Tailwind toolchain live in devDependencies. If NODE_ENV
-      # is ever 'production' (set by some Pages templates / repo vars), npm install
-      # skips devDependencies and the build fails with `vite: not found`.
-      # Force dev deps on regardless of NODE_ENV.
       - name: Install dependencies
-        # 注意：已将 npm ci 改为 npm install，使其可以在没有 lock 文件时动态解析并下载依赖
         run: npm install --include=dev
         env:
           NODE_ENV: development
 
       - name: Build
         env:
-          # The write token is baked into the deployed artifact by Vite.
-          # It is scoped to write the `data` branch only (fine-grained PAT).
           VITE_DATA_TOKEN: ${{ secrets.VITE_DATA_TOKEN }}
-          VITE_GH_OWNER: ${{ github.repository_owner }}
-          VITE_GH_REPO: ${{ github.event.repository.name }}
-          VITE_REPO_NAME: ${{ github.event.repository.name }}
           VITE_AMAP_KEY: ${{ secrets.VITE_AMAP_KEY }}
           VITE_AMAP_SECRET: ${{ secrets.VITE_AMAP_SECRET }}
-        run: npm run build
-        # aggregate.js runs after vite build and merges _data/ into dist/.
+          # 动态获取 Owner 和 Repo，兼容 push、手动和定时 schedule 触发
+          VITE_GH_OWNER: ${{ github.repository_owner }}
+          VITE_REPO_NAME: ${{ github.event.repository.name || github.event.repository.name == '' && github.event.repository.name || 'fallback_name' }} 
+        run: |
+          # 动态提取纯仓库名（过滤掉用户名/），并写入环境变量中供 Vite 读取
+          export VITE_GH_REPO=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          export VITE_REPO_NAME=$VITE_GH_REPO
+          npm run build
+          echo "==== 验证构建产物 ===="
+          ls -la dist # 打印 dist 目录，确保编译成功且有文件
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
