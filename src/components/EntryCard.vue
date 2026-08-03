@@ -63,13 +63,6 @@ const timeText = computed(() => {
         <span class="truncate font-serif">{{ authorName }}</span>
         <span class="shrink-0 font-mono">{{ timeText }}</span>
       </div>
-      <button
-        v-if="entry._local"
-        disabled
-        class="w-full rounded-xl glass px-3 py-1.5 text-[11px] text-amber-300/80"
-      >
-        等待通过
-      </button>
     </div>
   </article>
 </template>
