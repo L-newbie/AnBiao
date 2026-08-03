@@ -1,12 +1,3 @@
-这是优化修改后的完整 YAML 配置文件。主要做了三处关键调整：
-
-1. **将 `npm install` 改为 `npm ci**`：确保严格根据 `package-lock.json` 安装依赖，避免丢 link 或遗漏二进制命令。
-2. **开启 `cache: 'npm'**`：加速以后的构建过程。
-3. **删除了调试用的 `Verify vite installed` 步骤**：依赖正常安装后无需多余校验。
-
-把 `.github/workflows/deploy.yml` 的内容完整替换为以下代码即可：
-
-```yaml
 name: Deploy to GitHub Pages
 
 on:
@@ -75,5 +66,3 @@ jobs:
     steps:
       - name: Deploy
         uses: actions/deploy-pages@v4
-
-```
