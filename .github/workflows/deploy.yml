@@ -31,11 +31,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
+      # vite & the Vue/Tailwind toolchain live in devDependencies. If NODE_ENV
+      # is ever 'production' (set by some Pages templates / repo vars), npm ci
+      # skips devDependencies and the build fails with `vite: not found`.
+      # Force dev deps on regardless of NODE_ENV.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
+        env:
+          NODE_ENV: development
 
       - name: Build
         env:
