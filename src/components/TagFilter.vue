@@ -52,39 +52,46 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
       <span class="text-mist-muted text-xs" :class="open ? 'rotate-180' : ''" style="transition: transform 0.2s">⌄</span>
     </button>
 
-    <Transition name="view-fade">
+    <!-- dropdown wrapper: absolute so it floats under the button; the
+         grid-template-rows 0fr↔1fr transition grows/shrinks its height with
+         no translateY, so the panel slides open/down instead of "shaking". -->
+    <Transition name="dropdown-expand">
       <div
         v-if="open"
-        class="absolute z-30 mt-2 w-full glass-strong rounded-2xl p-2 shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-h-[60vh] overflow-y-auto thin-scroll"
+        class="absolute z-30 mt-2 w-full grid"
       >
-        <!-- select-all -->
-        <button
-          @click="selectAll"
-          :class="allSelected() ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
-          class="w-full rounded-xl px-3 py-2 text-sm transition mb-1"
+        <div
+          class="glass-strong rounded-2xl p-2 shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-h-[60vh] overflow-y-auto thin-scroll min-h-0"
         >
-          全部
-        </button>
-
-        <!-- tag grid: auto-fills columns by available width (1 col on narrow,
-             more on wider screens). minmax keeps chips readable. -->
-        <div class="grid gap-1.5 mt-1" style="grid-template-columns: repeat(auto-fill, minmax(96px, 1fr))">
+          <!-- select-all -->
           <button
-            v-for="t in tags"
-            :key="t"
-            @click="toggle(t)"
-            :class="modelValue.includes(t) ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
-            class="rounded-xl px-2.5 py-1.5 text-xs transition truncate"
-            :title="t"
+            @click="selectAll"
+            :class="allSelected() ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
+            class="w-full rounded-xl px-3 py-2 text-sm transition mb-1"
           >
-            {{ t }}
+            全部
           </button>
-        </div>
 
-        <!-- friendly hint when there are no tags to pick from yet -->
-        <p v-if="tags.length === 0" class="text-[11px] text-mist-muted/60 text-center py-2">
-          还没有任何标签，去留一条带标签的吧
-        </p>
+          <!-- tag grid: auto-fills columns by available width (1 col on narrow,
+               more on wider screens). minmax keeps chips readable. -->
+          <div class="grid gap-1.5 mt-1" style="grid-template-columns: repeat(auto-fill, minmax(96px, 1fr))">
+            <button
+              v-for="t in tags"
+              :key="t"
+              @click="toggle(t)"
+              :class="modelValue.includes(t) ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white' : 'glass text-mist-muted hover:text-mist-text'"
+              class="rounded-xl px-2.5 py-1.5 text-xs transition truncate"
+              :title="t"
+            >
+              {{ t }}
+            </button>
+          </div>
+
+          <!-- friendly hint when there are no tags to pick from yet -->
+          <p v-if="tags.length === 0" class="text-[11px] text-mist-muted/60 text-center py-2">
+            还没有任何标签，去留一条带标签的吧
+          </p>
+        </div>
       </div>
     </Transition>
   </div>
