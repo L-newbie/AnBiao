@@ -60,7 +60,7 @@ const pullText = computed(() => {
       >
         <span class="flex items-center gap-2">
           <span class="inline-block w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-          有 {{ newCount }} 条新暮色 · 点击查看
+          有 {{ newCount }} 条新内容 · 点击查看
         </span>
         <span class="text-mist-muted">›</span>
       </button>
@@ -71,7 +71,7 @@ const pullText = computed(() => {
       <h1 class="font-serif text-4xl sm:text-5xl text-mist-text tracking-wide font-semibold leading-tight">
         暗标
       </h1>
-      <p class="font-serif text-base text-accent mt-1 tracking-wide">握住你的腰子</p>
+      <p class="font-serif text-base text-accent mt-1 tracking-wide">呵护你的腰子</p>
       <div class="mt-4 h-px w-full bg-gradient-to-r from-transparent via-accent/30 to-transparent"></div>
     </header>
 
