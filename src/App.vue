@@ -10,9 +10,11 @@ import { loadEntries } from './lib/github.js'
 import { usePullRefresh } from './lib/usePullRefresh.js'
 import { getDeviceId, rebuildUploadsToday, rebuildCommentsToday, recordUpload, recordComment, uploadsToday, commentsToday } from './lib/device.js'
 import { needRefresh, offlineReady, applyUpdate, dismissOffline } from './lib/usePwaUpdate.js'
+import { useTagFilter, tagsFromEntries } from './lib/useTagFilter.js'
+import { loadPending, addPending, prunePending } from './lib/pending.js'
 
 const TAB_KEY = 'gc_tab'
-const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
+const AUTO_REFRESH_MS = 15 * 1000 // 15 seconds
 
 const tab = ref(localStorage.getItem(TAB_KEY) || 'community')
 const modalOpen = ref(false)
@@ -38,13 +40,15 @@ function closeDetail() {
   detail.value = null
 }
 
+// Tag filter lives here (not inside CommunityView) because the detail view can
+// trigger a "click a tag -> jump back to the feed filtered by it" flow — that
+// needs an external setter. City filter has no such cross-view write, so it
+// stays self-contained inside CommunityView. This is the one intentional
+// asymmetry between the two filters.
 const entries = ref([])
 const loading = ref(true)
 const loadErr = ref('')
 
-// New-content notice: count of entries the latest silent fetch found that
-// aren't yet displayed.
-const newCount = ref(0)
 let autoTimer = null
 
 // Show newest first. (The report/hidden flow was removed, so every published
@@ -54,6 +58,21 @@ const visible = computed(() =>
     .filter((e) => e.status !== 'hidden' || e._local)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
 )
+
+// Tag options derived from the visible feed (hidden entries' tags don't
+// populate the filter/upload chips). selectedTags is owned here so the detail
+// view can set it; useTagFilter gives persistence + stale-tag pruning for free.
+const allTags = computed(() => tagsFromEntries(visible.value))
+const { selected: selectedTags } = useTagFilter(allTags)
+
+// Click a tag chip on the detail view: filter the feed by that single tag and
+// return to the community tab. The tag came from an entry's tags (and lives in
+// allTags), so the composable's intersection watch won't drop it.
+function onFilterByTag(tag) {
+  selectedTags.value = [tag]
+  tab.value = 'community'
+  detail.value = null
+}
 
 watch(tab, (t) => {
   localStorage.setItem(TAB_KEY, t)
@@ -67,7 +86,6 @@ async function refresh() {
   try {
     const fresh = await loadEntries()
     entries.value = mergeKeepingLocal(entries.value, fresh)
-    newCount.value = 0
     rebuildCountsFromServer()
   } catch (e) {
     loadErr.value = e.message
@@ -89,43 +107,26 @@ function rebuildCountsFromServer() {
   window.dispatchEvent(new CustomEvent('gc-counts-rebuilt'))
 }
 
-// Silent fetch for the 5-min auto-refresh: compares id sets and only sets
-// newCount when there are genuinely new entries. Never flips the loading
-// flag or clobbers state mid-scroll.
+// Silent fetch for the 15s auto-refresh: merges new entries straight into
+// the list so the view refreshes itself without a tap. Never flips the
+// loading flag or clobbers state mid-scroll.
 async function silentFetch() {
   try {
     const fresh = await loadEntries()
-    const known = new Set(entries.value.map((e) => e.id))
-    const freshIds = fresh.map((e) => e.id)
-    const added = freshIds.filter((id) => !known.has(id))
-    if (added.length > 0) {
-      // Stash the fresh batch; reveal on user tap.
-      pendingFresh.value = fresh
-      newCount.value = added.length
-    }
+    entries.value = mergeKeepingLocal(entries.value, fresh)
+    rebuildCountsFromServer()
   } catch {
     /* keep last good state; stay quiet */
   }
 }
 
-// Held until the user taps the "new content" notice.
-const pendingFresh = ref([])
-
-function revealNew() {
-  if (!pendingFresh.value.length) {
-    newCount.value = 0
-    return
-  }
-  entries.value = mergeKeepingLocal(entries.value, pendingFresh.value)
-  pendingFresh.value = []
-  newCount.value = 0
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
 // Merge a fresh batch into current, preserving optimistic (_local) entries
-// that haven't shipped to the data branch yet.
+// that haven't shipped to the data branch yet. Any local entry whose id now
+// appears in the fresh aggregate has been promoted to the public feed — it
+// gets replaced by the server copy AND dropped from localStorage pending.
 function mergeKeepingLocal(current, fresh) {
   const freshIds = new Set(fresh.map((e) => e.id))
+  prunePending([...freshIds])
   const locals = current.filter((e) => e._local && !freshIds.has(e.id))
   return [...locals, ...fresh]
 }
@@ -144,12 +145,23 @@ function onPullRefresh() {
 function onSubmitted(entry) {
   // optimistic local display until next deploy
   entries.value = [entry, ...entries.value]
+  // Persist so a refresh doesn't lose it: data.json only rebuilds on a master
+  // deploy, and the in-memory _local entry would otherwise vanish on reload.
+  addPending(entry)
 }
 
 onMounted(async () => {
   loading.value = true
   try {
-    entries.value = await loadEntries()
+    // Restore entries submitted since the last deploy (not yet in data.json).
+    // They keep _local so cards show the "等待通过" badge until they're aggregated.
+    const pending = loadPending()
+    const server = await loadEntries()
+    const serverIds = new Set(server.map((e) => e.id))
+    // Any pending entry already in the live aggregate has been promoted — drop it.
+    const stillPending = pending.filter((e) => !serverIds.has(e.id))
+    if (stillPending.length !== pending.length) prunePending([...serverIds])
+    entries.value = mergeKeepingLocal(stillPending, server)
     rebuildCountsFromServer()
   } catch (e) {
     loadErr.value = e.message
@@ -174,6 +186,7 @@ onBeforeUnmount(() => {
           key="detail"
           :entry="detail"
           @close="closeDetail"
+          @filter-by-tag="onFilterByTag"
         />
         <CommunityView
           v-else-if="tab === 'community'"
@@ -181,10 +194,9 @@ onBeforeUnmount(() => {
           :entries="visible"
           :loading="loadingForView"
           :pull="pull"
-          :new-count="newCount"
+          v-model:selectedTags="selectedTags"
           @open="openDetail"
           @refresh="onPullRefresh"
-          @show-new="revealNew"
         />
         <MineView v-else key="mine" :entries="visible" @open="openDetail" />
       </Transition>
@@ -194,7 +206,7 @@ onBeforeUnmount(() => {
 
     <TabBar v-if="!detail" v-model="tab" />
 
-    <UploadModal v-model:open="modalOpen" @submitted="onSubmitted" />
+    <UploadModal v-model:open="modalOpen" :existingTags="allTags" @submitted="onSubmitted" />
 
     <!-- PWA update / offline-ready toast -->
     <Transition name="view-fade">
