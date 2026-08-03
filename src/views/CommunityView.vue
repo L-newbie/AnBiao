@@ -67,11 +67,15 @@ const pullText = computed(() => {
     </Transition>
 
     <!-- page header -->
-    <header class="pb-1">
-      <h1 class="font-serif text-4xl sm:text-5xl text-mist-text tracking-wide font-semibold leading-tight">
+    <header class="pb-1 text-center">
+      <h1
+        class="font-serif text-5xl sm:text-6xl font-semibold tracking-wide leading-tight
+               bg-gradient-to-r from-accent via-accent-3 to-accent-2
+               bg-clip-text text-transparent title-vibrant"
+      >
         暗标
       </h1>
-      <div class="mt-4 h-px w-full bg-gradient-to-r from-transparent via-accent/30 to-transparent"></div>
+      <div class="mt-4 h-px w-24 mx-auto bg-gradient-to-r from-transparent via-accent-2/40 to-transparent"></div>
     </header>
 
     <!-- city filter -->
