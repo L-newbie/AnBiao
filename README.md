@@ -2,7 +2,7 @@
 
 # 暗标 · AnBiao
 
- <a href="[https://L-newbie.github.io/real-time-valuation/](https://l-newbie.github.io/AnBiao/)">
+ <a href="https://l-newbie.github.io/AnBiao/">
     <img src="https://img.shields.io/badge/🚀_在线体验-点击访问-6366f1?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b" />
   </a>
   
