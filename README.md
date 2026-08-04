@@ -2,8 +2,9 @@
 
 # 暗标 · AnBiao
 
-
-<a href="https://l-newbie.github.io/AnBiao/"><img src="https://img.shields.io/badge/点开看看_-ff5c8a?style=for-the-badge&labelColor=1a1a2e&logo=arrowright&logoColor=ffffff" alt="点开看看" /></a>
+ <a href="[https://L-newbie.github.io/real-time-valuation/](https://l-newbie.github.io/AnBiao/)">
+    <img src="https://img.shields.io/badge/🚀_在线体验-点击访问-6366f1?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b" />
+  </a>
 
 <img src="https://img.shields.io/badge/匿名投放-7c5cff?style=flat-square&labelColor=1a1a2e" />
 <img src="https://img.shields.io/badge/去中心化-7c5cff?style=flat-square&labelColor=1a1a2e" />
