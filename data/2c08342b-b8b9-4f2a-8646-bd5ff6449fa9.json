@@ -1,0 +1,15 @@
+{
+  "id": "2c08342b-b8b9-4f2a-8646-bd5ff6449fa9",
+  "deviceId": "fp-f4cdbd1e",
+  "createdAt": "2026-08-05T09:10:10.143Z",
+  "lat": 40.117482,
+  "lng": 116.22214,
+  "city": "北京市",
+  "address": "北京市海淀区上庄镇上庄永泰中街中国人民解放军联勤保障部队第九八四医院",
+  "description": "Good",
+  "tags": [
+    "卡通"
+  ],
+  "image": "images/2c08342b-b8b9-4f2a-8646-bd5ff6449fa9.jpg",
+  "status": "published"
+}
