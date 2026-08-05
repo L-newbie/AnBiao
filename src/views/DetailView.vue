@@ -4,6 +4,7 @@ import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingComments
 import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
 import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
+import FavButton from '../components/FavButton.vue'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -213,6 +214,7 @@ async function submitComment() {
         v-if="entry._local"
         class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
       >等待通过</span>
+      <FavButton :entry-id="entry.id" variant="detail" />
     </div>
 
     <!-- full description -->
