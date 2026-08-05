@@ -4,7 +4,9 @@ import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingComments
 import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
 import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
+import { deletedComments, isCommentDeleted, addDeletedComment } from '../lib/deletedComments.js'
 import FavButton from '../components/FavButton.vue'
+import DeleteButton from '../components/DeleteButton.vue'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -89,14 +91,44 @@ function closeLightbox() {
 const localComments = ref(pendingCommentsFor(props.entry.id))
 const persistedComments = computed(() => props.entry.comments || [])
 const comments = computed(() => {
+  // Touch the tombstone store so a delete re-renders this list immediately —
+  // isCommentDeleted reads it, but only inside a filter callback.
+  void deletedComments.value
   // persisted already sorted by aggregate.js; local are newest, on top.
   // Drop a local comment once its id shows up in the persisted set — that
   // means it's been aggregated (promoted) and the server copy replaces it,
   // so we never render both the _local and the live version.
   const persistedIds = new Set(persistedComments.value.map((c) => c.id))
   const live = localComments.value.filter((c) => !persistedIds.has(c.id))
-  return [...live, ...persistedComments.value]
+  // Tombstones suppress the author's just-deleted comments until the hourly
+  // aggregation drops them from data.json for good.
+  return [...live, ...persistedComments.value].filter((c) => !isCommentDeleted(c.id))
 })
+
+const myId = getDeviceId()
+// Only the author of a comment may delete it. Comparing deviceId (not the
+// display name) — poetic names collide across devices by design.
+function isMine(c) {
+  return Boolean(c) && c.deviceId === myId
+}
+
+// Last comment-delete failure, shown under the list. Cleared on the next try.
+const delErr = ref('')
+function onCommentDeleted(id) {
+  delErr.value = ''
+  // Tombstone first so the row vanishes even though the entry's aggregated
+  // copy still carries it.
+  addDeletedComment(id)
+  // If it was still pending (never aggregated), drop it from that store too —
+  // otherwise re-opening this view would seed it back into localComments.
+  removePendingComment(id)
+  localComments.value = localComments.value.filter((c) => c.id !== id)
+  // Let MineView's 留言 list re-read the pending store.
+  window.dispatchEvent(new CustomEvent('gc-comments-changed'))
+}
+function onCommentDeleteError(msg) {
+  delErr.value = msg
+}
 
 const myName = computed(() => getPoeticName(getDeviceId()))
 const remaining = ref(remainingCommentsToday(config.maxCommentsPerDay))
@@ -272,12 +304,23 @@ async function submitComment() {
               {{ c.author || '匿名' }}
               <span v-if="c._local" class="text-amber-300/80">· 等待通过</span>
             </span>
-            <span class="text-[10px] text-mist-muted/70 font-mono shrink-0">{{ commentTime(c) }}</span>
+            <span class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[10px] text-mist-muted/70 font-mono">{{ commentTime(c) }}</span>
+              <DeleteButton
+                v-if="isMine(c)"
+                :entry-id="entry.id"
+                :comment-id="c.id"
+                variant="comment"
+                @deleted="onCommentDeleted"
+                @error="onCommentDeleteError"
+              />
+            </span>
           </div>
           <p class="text-sm text-mist-muted leading-relaxed whitespace-pre-wrap break-all">{{ c.text }}</p>
         </div>
       </div>
       <p v-else class="text-xs text-mist-muted/60 mb-3">还没有留言，来说点什么吧</p>
+      <p v-if="delErr" class="-mt-2 mb-3 text-[11px] text-rose-glow">{{ delErr }}</p>
 
       <!-- comment input -->
       <div v-if="entry._local" class="text-xs text-amber-300/80">
