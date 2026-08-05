@@ -9,7 +9,7 @@
   "description": "Good",
   "tags": [],
   "image": "images/d2db2e81-6fc5-4afb-880a-a4e1a7664266.jpg",
-  "status": "published",
+  "status": "deleted",
   "comments": [
     {
       "id": "f6290ed2-da9b-46a8-8e74-df37f892fbae",
@@ -27,5 +27,6 @@
       "text": "good",
       "createdAt": "2026-08-05T08:45:58.487Z"
     }
-  ]
+  ],
+  "deletedAt": "2026-08-05T08:49:08.086Z"
 }
