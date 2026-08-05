@@ -66,7 +66,7 @@ const pullText = computed(() => {
                bg-gradient-to-r from-accent via-accent-3 to-accent-2
                bg-clip-text text-transparent title-vibrant"
       >
-        暗标
+        比邻云
       </h1>
       <div class="mt-4 h-px w-24 mx-auto bg-gradient-to-r from-transparent via-accent-2/40 to-transparent"></div>
     </header>
