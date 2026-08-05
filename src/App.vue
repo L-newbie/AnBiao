@@ -11,8 +11,9 @@ import { usePullRefresh } from './lib/usePullRefresh.js'
 import { getDeviceId, rebuildUploadsToday, rebuildCommentsToday, recordUpload, recordComment, uploadsToday, commentsToday } from './lib/device.js'
 import { needRefresh, offlineReady, applyUpdate, dismissOffline } from './lib/usePwaUpdate.js'
 import { useTagFilter, tagsFromEntries } from './lib/useTagFilter.js'
-import { loadPending, addPending, prunePending } from './lib/pending.js'
-import { prunePendingComments, loadPendingComments } from './lib/pendingComments.js'
+import { loadPending, addPending, prunePending, removePending } from './lib/pending.js'
+import { prunePendingComments, loadPendingComments, removePendingComment } from './lib/pendingComments.js'
+import { isDeleted, addDeleted, pruneDeleted } from './lib/deletedEntries.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 15 * 1000 // 15 seconds
@@ -58,10 +59,12 @@ const commentsVersion = ref(0)
 let autoTimer = null
 
 // Show newest first. (The report/hidden flow was removed, so every published
-// entry is visible.)
+// entry is visible.) Entries the author just deleted are suppressed by their
+// tombstone until aggregation drops them from data.json for good.
 const visible = computed(() =>
   entries.value
     .filter((e) => e.status !== 'hidden' || e._local)
+    .filter((e) => !isDeleted(e.id))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
 )
 
@@ -159,7 +162,11 @@ function mergeKeepingLocal(current, fresh) {
   // Comments aggregated into the live feed are promoted out of pending too —
   // drop them so they stop showing as "等待通过" once the server copy arrives.
   prunePendingComments(fresh)
-  const locals = current.filter((e) => e._local && !freshIds.has(e.id))
+  // Tombstones for entries aggregation has now dropped are no longer needed.
+  pruneDeleted([...freshIds])
+  // A deleted pending entry would otherwise be kept here forever: it never
+  // reaches the aggregate, so !freshIds.has(id) stays true for good.
+  const locals = current.filter((e) => e._local && !freshIds.has(e.id) && !isDeleted(e.id))
   return [...locals, ...fresh]
 }
 
@@ -186,6 +193,29 @@ function onSubmitted(entry) {
 // rolled back, so MineView's "我的留言" reflects it without a reload.
 function onCommentsChanged() {
   commentsVersion.value++
+}
+
+// The author deleted one of their own entries. The write to the data branch
+// already succeeded (DeleteButton only emits on success); here we suppress it
+// locally until aggregation catches up.
+//
+// Note we deliberately do NOT splice it out of `entries.value`: the tombstone
+// filter on `visible` already hides it, and leaving it in the raw array keeps
+// rebuildCountsFromServer counting it, so deleting can't hand back today's
+// upload quota.
+function onDeleted(id) {
+  addDeleted(id)
+  // If it never made it into the aggregate, drop it from pending too —
+  // otherwise onMounted would restore it on the next load.
+  removePending(id)
+  // Our own not-yet-aggregated comments on it would linger forever, showing as
+  // disabled "记录待审核" rows in the Mine tab (they can never be pruned — the
+  // entry won't reappear in the aggregate to prune them against).
+  const orphans = loadPendingComments().filter((c) => c && c.entryId === id)
+  if (orphans.length) {
+    for (const c of orphans) removePendingComment(c.id)
+    window.dispatchEvent(new CustomEvent('gc-comments-changed'))
+  }
 }
 
 onMounted(async () => {
@@ -238,7 +268,14 @@ onBeforeUnmount(() => {
           @open="openDetail"
           @refresh="onPullRefresh"
         />
-        <MineView v-else key="mine" :entries="visible" :myComments="myComments" @open="openDetail" />
+        <MineView
+          v-else
+          key="mine"
+          :entries="visible"
+          :myComments="myComments"
+          @open="openDetail"
+          @deleted="onDeleted"
+        />
       </Transition>
     </main>
 
