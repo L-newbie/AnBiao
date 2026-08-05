@@ -5,7 +5,7 @@ on:
     branches: [master]
   workflow_dispatch: 
   schedule:
-    - cron: '12 */3 * * *' # 每 3 小时的第 12 分钟执行一次（如 03:12, 06:12 等），避开整点拥堵
+    - cron: '17 * * * *' # 每小时的第 17 分钟执行一次，避开整点拥堵（GitHub 定时任务在整点负载高时会延迟甚至跳过）
 
 permissions:
   contents: read
