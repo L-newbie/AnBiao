@@ -1,54 +1,13 @@
 <script setup>
-import { computed } from 'vue'
-import { favorites, isFavorite, toggleFavorite } from '../lib/favorites.js'
-
-const props = defineProps({
-  entryId: { type: String, required: true },
-  // 'card' floats over the feed thumbnail; 'detail' sits inline in the header.
-  variant: { type: String, default: 'card' },
-})
-
-// Read through the shared reactive store so every instance of this button
-// (feed card + open detail view) flips together.
-const on = computed(() => {
-  void favorites.value
-  return isFavorite(props.entryId)
-})
-
-function onClick() {
-  toggleFavorite(props.entryId)
-}
+defineEmits(['click'])
 </script>
 
 <template>
   <button
-    @click.stop="onClick"
-    :aria-pressed="on"
-    :title="on ? '取消收藏' : '收藏'"
-    :class="[
-      'shrink-0 flex items-center justify-center transition active:scale-90',
-      // 'card' floats over the photo, so a dark scrim gives it contrast.
-      // 'detail' sits inside a glass card — plain glass on glass would be
-      // white-on-white, so it gets a tinted fill + ring instead.
-      variant === 'card'
-        ? 'absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/45'
-        : on
-          ? 'w-10 h-10 rounded-full bg-amber-400/20 ring-1 ring-amber-500/45 hover:bg-amber-400/30'
-          : 'w-10 h-10 rounded-full bg-accent/10 ring-1 ring-accent/30 hover:bg-accent/20',
-    ]"
+    @click="$emit('click')"
+    aria-label="新建记录"
+    class="fab-pulse fixed right-4 bottom-24 z-50 w-16 h-16 rounded-full glass-strong flex items-center justify-center text-3xl text-rose-glow hover:brightness-110 hover:text-white"
   >
-    <span
-      class="leading-none transition-transform"
-      :class="[
-        variant === 'card' ? 'text-base' : 'text-lg',
-        variant === 'card'
-          ? on
-            ? 'text-amber-300 scale-110'
-            : 'text-white/80'
-          : on
-            ? 'text-amber-500 scale-110'
-            : 'text-accent',
-      ]"
-    >{{ on ? '★' : '☆' }}</span>
+    ＋
   </button>
 </template>
