@@ -17,15 +17,15 @@ export default defineConfig({
       injectRegister: false, // manual register in main.js → we get the updateSW handle
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: '暗标 AnBiao',
-        short_name: '暗标',
+        name: '比邻云 proxima',
+        short_name: '比邻云',
         description: '匿名投放、路过即见——一张图一个坐标的公益记录',
         theme_color: '#f0f6fb',
         background_color: '#f0f6fb',
         display: 'standalone',
         orientation: 'portrait',
         // start_url / scope intentionally omitted: the plugin derives both
-        // from `base` (=/AnBiao/), which is the most broadly compatible form.
+        // from `base` (=/proxima/), which is the most broadly compatible form.
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
@@ -55,7 +55,7 @@ export default defineConfig({
             urlPattern: /\/images\/.*\.(?:png|jpe?g|webp)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'anbiao-images',
+              cacheName: 'proxima-images',
               expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
             },
           },
