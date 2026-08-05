@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import Avatar from '../components/Avatar.vue'
 import DeleteButton from '../components/DeleteButton.vue'
+import StarIcon from '../components/StarIcon.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
 import { favoriteEntries } from '../lib/favorites.js'
@@ -10,9 +11,10 @@ const props = defineProps({
   entries: { type: Array, default: () => [] },
   myComments: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['open', 'deleted'])
+const emit = defineEmits(['open', 'deleted', 'comment-deleted'])
 
 // Last delete failure, shown under the list. Cleared on the next attempt.
+// Shared by both sections — only one is on screen at a time.
 const delErr = ref('')
 function onDeleted(id) {
   delErr.value = ''
@@ -20,6 +22,10 @@ function onDeleted(id) {
 }
 function onDeleteError(msg) {
   delErr.value = msg
+}
+function onCommentDeleted(id) {
+  delErr.value = ''
+  emit('comment-deleted', id)
 }
 
 const id = getDeviceId()
@@ -45,7 +51,7 @@ const sections = computed(() => [
 const emptyText = {
   entries: '还没有留下什么。去投一条吧。',
   comments: '还没有说过话。',
-  favorites: '还没有收藏。点开任意一条，按右上角的 ☆。',
+  favorites: '还没有收藏。点开任意一条，按右上角的星形按钮。',
 }
 
 // Pending (_local) entries carry an absolute data-branch raw URL (their image
@@ -156,27 +162,38 @@ function openComment(comment) {
         <p v-if="delErr" class="text-[11px] text-rose-glow px-1">{{ delErr }}</p>
       </template>
 
-      <!-- 留言 (live + still-pending ones, flagged 等待通过) -->
+      <!-- 留言 (live + still-pending ones, flagged 等待通过) — a plain div for
+           the same reason as 记录 above: the row holds both an open action and
+           a delete button, and buttons can't nest. -->
       <template v-else-if="section === 'comments'">
-        <button
+        <div
           v-for="c in myComments"
           :key="c.id"
-          @click="openComment(c)"
-          :disabled="!entryOf(c)"
-          class="glass w-full rounded-2xl p-3 flex items-start gap-3 text-left hover:brightness-110 disabled:opacity-60 disabled:cursor-default"
+          class="glass w-full rounded-2xl p-3 flex items-start gap-3"
         >
-          <div class="min-w-0 flex-1">
+          <button
+            @click="openComment(c)"
+            :disabled="!entryOf(c)"
+            class="text-left min-w-0 flex-1 hover:brightness-110 disabled:opacity-60 disabled:cursor-default"
+          >
             <p class="text-sm text-mist-muted leading-relaxed line-clamp-2 break-all">{{ c.text }}</p>
             <p class="text-xs text-mist-muted/70 mt-1 line-clamp-1">
               {{ commentTime(c) }} · {{ entryOf(c) ? (entryOf(c).city || entryOf(c).address || '该记录') : '记录待审核' }}
             </p>
-          </div>
+          </button>
           <span
             v-if="c._local"
             class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
           >等待通过</span>
-          <span v-else class="text-mist-muted/60 text-sm shrink-0">›</span>
-        </button>
+          <DeleteButton
+            :entry-id="c.entryId"
+            :comment-id="c.id"
+            variant="comment"
+            @deleted="onCommentDeleted"
+            @error="onDeleteError"
+          />
+        </div>
+        <p v-if="delErr" class="text-[11px] text-rose-glow px-1">{{ delErr }}</p>
       </template>
 
       <!-- 收藏 -->
@@ -192,7 +209,7 @@ function openComment(comment) {
             <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
             <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
           </div>
-          <span class="text-amber-300 text-sm shrink-0">★</span>
+          <StarIcon filled class="w-4 h-4 text-amber-500 shrink-0" />
         </button>
       </template>
 
