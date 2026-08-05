@@ -11,5 +11,15 @@
     "Test"
   ],
   "image": "images/c6e55faf-1b34-4919-af78-d8e5bcc791a1.jpg",
-  "status": "published"
+  "status": "published",
+  "comments": [
+    {
+      "id": "7defbd2a-d4bc-435b-9ca4-3e127da15d0b",
+      "entryId": "c6e55faf-1b34-4919-af78-d8e5bcc791a1",
+      "deviceId": "fp-f4cdbd1e",
+      "author": "暮色听雨",
+      "text": "哈喽👋",
+      "createdAt": "2026-08-05T11:03:07.019Z"
+    }
+  ]
 }
