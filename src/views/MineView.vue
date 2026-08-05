@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Avatar from '../components/Avatar.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
+import { favoriteEntries } from '../lib/favorites.js'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
@@ -15,8 +16,26 @@ const poeticName = getPoeticName(id)
 const code = maskedDeviceCode(id)
 
 const mine = computed(() => props.entries.filter((e) => e.deviceId === id))
+// favoriteEntries reads the shared reactive `favorites` ref, so un-starring an
+// entry from this list drops it here immediately.
+const favs = computed(() => favoriteEntries(props.entries))
 const remaining = remainingToday(config.maxUploadsPerDay)
 const used = uploadsToday()
+
+// Which of the three sections is showing. Not persisted — the tab always opens
+// on 记录, the most-used section.
+const section = ref('entries')
+const sections = computed(() => [
+  { key: 'entries', label: '记录', count: mine.value.length },
+  { key: 'comments', label: '留言', count: props.myComments.length },
+  { key: 'favorites', label: '收藏', count: favs.value.length },
+])
+
+const emptyText = {
+  entries: '还没有留下什么。去投一条吧。',
+  comments: '还没有说过话。',
+  favorites: '还没有收藏。点开任意一条，按右上角的 ☆。',
+}
 
 // Pending (_local) entries carry an absolute data-branch raw URL (their image
 // isn't in dist/images until a deploy); aggregated entries carry a relative
@@ -81,10 +100,26 @@ function openComment(comment) {
       </div>
     </section>
 
-    <!-- my entries -->
-    <section v-if="mine.length" class="space-y-2">
-      <h3 class="font-serif text-lg text-mist-text">我的记录</h3>
-      <div class="space-y-2">
+    <!-- section switcher: 记录 / 留言 / 收藏 -->
+    <section class="glass rounded-2xl p-1 grid grid-cols-3 gap-1">
+      <button
+        v-for="s in sections"
+        :key="s.key"
+        @click="section = s.key"
+        class="rounded-xl py-2 text-sm transition"
+        :class="section === s.key
+          ? 'bg-gradient-to-r from-rose-soft to-rose-glow text-white font-semibold shadow'
+          : 'text-mist-muted hover:text-mist-text hover:brightness-110'"
+      >
+        {{ s.label }}
+        <span class="text-[11px] opacity-70">{{ s.count }}</span>
+      </button>
+    </section>
+
+    <!-- panel -->
+    <section class="space-y-2">
+      <!-- 记录 -->
+      <template v-if="section === 'entries'">
         <button
           v-for="e in mine"
           :key="e.id"
@@ -96,15 +131,16 @@ function openComment(comment) {
             <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
             <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
           </div>
-          <span class="text-mist-muted/60 text-sm shrink-0">›</span>
+          <span
+            v-if="e._local"
+            class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
+          >等待通过</span>
+          <span v-else class="text-mist-muted/60 text-sm shrink-0">›</span>
         </button>
-      </div>
-    </section>
+      </template>
 
-    <!-- my comments (live + still-pending ones, flagged 等待通过) -->
-    <section v-if="myComments.length" class="space-y-2">
-      <h3 class="font-serif text-lg text-mist-text">我的留言 · {{ myComments.length }}</h3>
-      <div class="space-y-2">
+      <!-- 留言 (live + still-pending ones, flagged 等待通过) -->
+      <template v-else-if="section === 'comments'">
         <button
           v-for="c in myComments"
           :key="c.id"
@@ -124,7 +160,32 @@ function openComment(comment) {
           >等待通过</span>
           <span v-else class="text-mist-muted/60 text-sm shrink-0">›</span>
         </button>
-      </div>
+      </template>
+
+      <!-- 收藏 -->
+      <template v-else>
+        <button
+          v-for="e in favs"
+          :key="e.id"
+          @click="emit('open', e)"
+          class="glass w-full rounded-2xl p-3 flex items-center gap-3 text-left hover:brightness-110"
+        >
+          <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
+            <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
+          </div>
+          <span class="text-amber-300 text-sm shrink-0">★</span>
+        </button>
+      </template>
+
+      <!-- empty state for whichever section is active -->
+      <p
+        v-if="!sections.find((s) => s.key === section).count"
+        class="glass rounded-2xl py-8 text-center text-xs text-mist-muted/70"
+      >
+        {{ emptyText[section] }}
+      </p>
     </section>
   </div>
 </template>
