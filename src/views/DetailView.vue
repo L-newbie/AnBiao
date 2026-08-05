@@ -51,7 +51,7 @@ const navs = computed(() => [
   },
   {
     name: '百度地图',
-    href: `https://api.map.baidu.com/direction?destination=latlng:${lat.value},${lng.value}|name:${encodeURIComponent(props.entry.address || locText.value)}&coord_type=wgs84&output=html&src=AnBiao`,
+    href: `https://api.map.baidu.com/direction?destination=latlng:${lat.value},${lng.value}|name:${encodeURIComponent(props.entry.address || locText.value)}&coord_type=wgs84&output=html&src=proxima`,
   },
   {
     name: 'Apple 地图',
