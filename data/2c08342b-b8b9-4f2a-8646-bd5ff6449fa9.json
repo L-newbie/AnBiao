@@ -11,7 +11,7 @@
     "卡通"
   ],
   "image": "images/2c08342b-b8b9-4f2a-8646-bd5ff6449fa9.jpg",
-  "status": "published",
+  "status": "deleted",
   "comments": [
     {
       "id": "c76dd334-5ea0-4cae-94bc-2bd7096b2a4e",
@@ -31,5 +31,6 @@
       "text": "怎么了",
       "createdAt": "2026-08-05T09:30:44.548Z"
     }
-  ]
+  ],
+  "deletedAt": "2026-08-05T09:50:40.358Z"
 }
