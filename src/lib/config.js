@@ -8,7 +8,7 @@ const env = import.meta.env
 export const config = {
   // GitHub repo that holds BOTH the app (master branch) and the data (data branch).
   owner: env.VITE_GH_OWNER || 'L-newbie',
-  repo: env.VITE_GH_REPO || 'AnBiao',
+  repo: env.VITE_GH_REPO || 'proxima',
   dataBranch: env.VITE_DATA_BRANCH || 'data',
   // Fine-grained PAT, build-time injected from Actions Secrets (VITE_DATA_TOKEN).
   // Deliberately not committed here. In the deployed bundle it is still visible
