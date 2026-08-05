@@ -19,7 +19,9 @@
       "deviceId": "fp-f4cdbd1e",
       "author": "暮色听雨",
       "text": "很好",
-      "createdAt": "2026-08-05T09:26:07.199Z"
+      "createdAt": "2026-08-05T09:26:07.199Z",
+      "status": "deleted",
+      "deletedAt": "2026-08-05T09:30:08.344Z"
     }
   ]
 }
