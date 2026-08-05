@@ -11,5 +11,15 @@
     "卡通"
   ],
   "image": "images/2c08342b-b8b9-4f2a-8646-bd5ff6449fa9.jpg",
-  "status": "published"
+  "status": "published",
+  "comments": [
+    {
+      "id": "c76dd334-5ea0-4cae-94bc-2bd7096b2a4e",
+      "entryId": "2c08342b-b8b9-4f2a-8646-bd5ff6449fa9",
+      "deviceId": "fp-f4cdbd1e",
+      "author": "暮色听雨",
+      "text": "很好",
+      "createdAt": "2026-08-05T09:26:07.199Z"
+    }
+  ]
 }
