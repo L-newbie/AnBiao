@@ -173,9 +173,13 @@ async function submit() {
     err.value = `今日上传已达上限（${config.maxUploadsPerDay} 次）`
     return
   }
+  // Commit any text still sitting in the tag input — a user who typed a tag but
+  // never pressed Enter clearly meant to add it, and tags are now required.
+  addTagFromInput()
   if (!file.value) return (err.value = '请添加照片')
   if (!point.value) return (err.value = '请选择位置')
   if (!description.value.trim()) return (err.value = '请填写描述')
+  if (!tags.value.length) return (err.value = '请至少添加一个标签')
   if (!city.value.trim()) return (err.value = '请填写城市（在位置弹窗中选点后自动填入）')
 
   busy.value = true
@@ -268,7 +272,9 @@ const sizeHint = computed(() => (file.value ? prettyBytes(file.value.size) : '')
 
         <!-- tags: pick from existing + add your own -->
         <div>
-          <label class="block text-sm font-medium text-mist-muted mb-1.5">标签</label>
+          <label class="block text-sm font-medium text-mist-muted mb-1.5">
+            标签 <span class="text-rose-glow">*</span>
+          </label>
 
           <!-- selected tags as removable chips -->
           <div v-if="tags.length" class="flex flex-wrap gap-1.5 mb-2">
