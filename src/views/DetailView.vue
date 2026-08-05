@@ -5,6 +5,7 @@ import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
 import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
 import { deletedComments, isCommentDeleted, addDeletedComment } from '../lib/deletedComments.js'
+import { imageSrc } from '../lib/images.js'
 import FavButton from '../components/FavButton.vue'
 import DeleteButton from '../components/DeleteButton.vue'
 
@@ -13,14 +14,9 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'filter-by-tag'])
 
-// Pending/optimistic entries store the full raw URL on the data branch (the
-// dist/images copy only ships after a master deploy); aggregated entries store
-// a relative path. Use absolute URLs verbatim, prefix relative ones with BASE_URL.
-const imgSrc = computed(() => {
-  const img = props.entry.image
-  if (!img) return ''
-  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
-})
+// The hero and the lightbox both show the full-size original, not the list
+// thumbnail — this is where the picture is actually meant to be looked at.
+const imgSrc = computed(() => imageSrc(props.entry))
 
 const authorName = computed(() => getPoeticName(props.entry.deviceId || ''))
 const avatar = computed(() => getAvatar(props.entry.deviceId || ''))
