@@ -98,6 +98,41 @@ export async function addComment(entryId, comment) {
   throw new Error('留言失败：多次冲突，请稍后重试')
 }
 
+// Soft-delete an entry: mark its JSON on the data branch instead of removing
+// the file, so the record stays auditable. The next aggregation drops it from
+// the public data.json (see scripts/aggregate.js). Same read-modify-write +
+// SHA + 409 retry shape as addComment; every other field (comments, reports,
+// image, …) is preserved verbatim.
+//
+// Note pending ("等待通过") entries already have their file on the data branch —
+// uploadEntry writes it before returning — so this works for them too.
+export async function deleteEntry(entryId) {
+  const path = `data/${entryId}.json`
+  const MAX_TRIES = 3
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    const meta = await getFileMeta(path)
+    if (!meta) throw new Error('找不到该记录')
+    const entry = JSON.parse(b64ToUtf8(meta.content))
+    entry.status = 'deleted'
+    entry.deletedAt = new Date().toISOString()
+    const b64 = utf8ToB64(JSON.stringify(entry, null, 2))
+    const res = await fetch(API + repoPath(path), {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ message: `chore: delete entry ${entryId}`, content: b64, branch: config.dataBranch, sha: meta.sha }),
+    })
+    if (res.ok) return res.json()
+    if (res.status === 409 && attempt < MAX_TRIES) {
+      // Someone else updated the file since we read it (e.g. a comment landed);
+      // retry with a fresh SHA so we don't clobber it.
+      continue
+    }
+    const t = await res.text()
+    throw new Error(`删除失败 ${res.status}: ${t}`)
+  }
+  throw new Error('删除失败：多次冲突，请稍后重试')
+}
+
 // Runtime read: one fetch of the prebuilt aggregate served by Pages.
 export async function loadEntries() {
   const res = await fetch(config.dataUrl, { cache: 'no-store' })
