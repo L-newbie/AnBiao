@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import Avatar from '../components/Avatar.vue'
+import DeleteButton from '../components/DeleteButton.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
 import { favoriteEntries } from '../lib/favorites.js'
@@ -9,7 +10,17 @@ const props = defineProps({
   entries: { type: Array, default: () => [] },
   myComments: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['open'])
+const emit = defineEmits(['open', 'deleted'])
+
+// Last delete failure, shown under the list. Cleared on the next attempt.
+const delErr = ref('')
+function onDeleted(id) {
+  delErr.value = ''
+  emit('deleted', id)
+}
+function onDeleteError(msg) {
+  delErr.value = msg
+}
 
 const id = getDeviceId()
 const poeticName = getPoeticName(id)
@@ -118,25 +129,31 @@ function openComment(comment) {
 
     <!-- panel -->
     <section class="space-y-2">
-      <!-- 记录 -->
+      <!-- 记录 — the row is a plain div, not a button: it holds the open
+           action AND a delete button, and buttons can't nest. -->
       <template v-if="section === 'entries'">
-        <button
+        <div
           v-for="e in mine"
           :key="e.id"
-          @click="emit('open', e)"
-          class="glass w-full rounded-2xl p-3 flex items-center gap-3 text-left hover:brightness-110"
+          class="glass w-full rounded-2xl p-3 flex items-center gap-3"
         >
-          <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
-          <div class="min-w-0 flex-1">
-            <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
-            <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
-          </div>
+          <button
+            @click="emit('open', e)"
+            class="flex items-center gap-3 text-left min-w-0 flex-1 hover:brightness-110"
+          >
+            <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
+              <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
+            </div>
+          </button>
           <span
             v-if="e._local"
             class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
           >等待通过</span>
-          <span v-else class="text-mist-muted/60 text-sm shrink-0">›</span>
-        </button>
+          <DeleteButton :entry-id="e.id" @deleted="onDeleted" @error="onDeleteError" />
+        </div>
+        <p v-if="delErr" class="text-[11px] text-rose-glow px-1">{{ delErr }}</p>
       </template>
 
       <!-- 留言 (live + still-pending ones, flagged 等待通过) -->
