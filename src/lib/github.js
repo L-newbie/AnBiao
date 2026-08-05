@@ -133,6 +133,47 @@ export async function deleteEntry(entryId) {
   throw new Error('删除失败：多次冲突，请稍后重试')
 }
 
+// Soft-delete ONE comment on an entry: flip that comment's status to 'deleted'
+// in place inside the entry JSON. Same read-modify-write + SHA + 409 retry
+// shape as addComment/deleteEntry, and for the same reason — a concurrent
+// comment on the entry must not be clobbered. The comment object itself stays
+// in the array so the record remains auditable; scripts/aggregate.js is what
+// keeps it out of the public feed.
+//
+// A comment that isn't in the array resolves as { alreadyGone: true } instead
+// of throwing: the end state the caller wants (not on the branch) already
+// holds, and it still needs to clear its local copy. That covers an optimistic
+// comment whose write never landed because the tab closed mid-flight.
+export async function deleteComment(entryId, commentId) {
+  const path = `data/${entryId}.json`
+  const MAX_TRIES = 3
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    const meta = await getFileMeta(path)
+    if (!meta) throw new Error('找不到该记录')
+    const entry = JSON.parse(b64ToUtf8(meta.content))
+    const list = Array.isArray(entry.comments) ? entry.comments : []
+    const target = list.find((c) => c && c.id === commentId)
+    if (!target) return { alreadyGone: true }
+    target.status = 'deleted'
+    target.deletedAt = new Date().toISOString()
+    const b64 = utf8ToB64(JSON.stringify(entry, null, 2))
+    const res = await fetch(API + repoPath(path), {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ message: `chore: delete comment ${commentId}`, content: b64, branch: config.dataBranch, sha: meta.sha }),
+    })
+    if (res.ok) return res.json()
+    if (res.status === 409 && attempt < MAX_TRIES) {
+      // Someone else appended a comment since we read it; retry with a fresh
+      // SHA so their write survives ours.
+      continue
+    }
+    const t = await res.text()
+    throw new Error(`删除留言失败 ${res.status}: ${t}`)
+  }
+  throw new Error('删除留言失败：多次冲突，请稍后重试')
+}
+
 // Runtime read: one fetch of the prebuilt aggregate served by Pages.
 export async function loadEntries() {
   const res = await fetch(config.dataUrl, { cache: 'no-store' })
