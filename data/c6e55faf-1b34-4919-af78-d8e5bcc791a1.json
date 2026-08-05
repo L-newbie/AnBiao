@@ -1,0 +1,15 @@
+{
+  "id": "c6e55faf-1b34-4919-af78-d8e5bcc791a1",
+  "deviceId": "fp-f4cdbd1e",
+  "createdAt": "2026-08-05T09:51:20.910Z",
+  "lat": 40.084056,
+  "lng": 115.885775,
+  "city": "北京市",
+  "address": "北京市门头沟区雁翅镇毛儿岩沟",
+  "description": "Good",
+  "tags": [
+    "Test"
+  ],
+  "image": "images/c6e55faf-1b34-4919-af78-d8e5bcc791a1.jpg",
+  "status": "published"
+}
