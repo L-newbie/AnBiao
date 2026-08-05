@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { getPoeticName } from '../lib/device.js'
+import FavButton from './FavButton.vue'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -52,6 +53,8 @@ const timeText = computed(() => {
       >
         等待通过
       </span>
+      <!-- @click.stop inside FavButton keeps this from opening the detail view -->
+      <FavButton :entry-id="entry.id" variant="card" />
     </div>
     <div class="p-3 space-y-1.5 flex-1">
       <p class="font-serif text-sm text-mist-text line-clamp-1">{{ locText }}</p>
