@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate the 暗标 AnBiao PWA icons.
+"""Generate the 比邻云 proxima PWA icons.
 
 We have no CJK font and no SVG rasterizer (no convert/rsvg/inkscape/sharp) on
 this machine, so we draw a geometric location-pin mark instead of the glyph
-暗 — which fits the app's lat/lng/map identity anyway.
+比 — which fits the app's lat/lng/map identity anyway.
 
 Output (into ../public, i.e. <repo>/public):
   pwa-192x192.png, pwa-512x512.png  — square, full-bleed gradient + centered pin
