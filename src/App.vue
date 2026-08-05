@@ -14,6 +14,7 @@ import { useTagFilter, tagsFromEntries } from './lib/useTagFilter.js'
 import { loadPending, addPending, prunePending, removePending } from './lib/pending.js'
 import { prunePendingComments, loadPendingComments, removePendingComment } from './lib/pendingComments.js'
 import { isDeleted, addDeleted, pruneDeleted } from './lib/deletedEntries.js'
+import { deletedComments, isCommentDeleted, addDeletedComment, pruneDeletedComments } from './lib/deletedComments.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 15 * 1000 // 15 seconds
@@ -82,6 +83,9 @@ const myComments = computed(() => {
   // Touch commentsVersion so a localStorage-only change (pending comment added/
   // removed) still triggers recompute — loadPendingComments isn't reactive.
   void commentsVersion.value
+  // Tombstoned comments stay in the aggregate until the next aggregation, so
+  // this list has to filter them out the same way DetailView's does.
+  void deletedComments.value
   const id = getDeviceId()
   const out = []
   for (const e of visible.value) {
@@ -94,7 +98,9 @@ const myComments = computed(() => {
     if (c && c.deviceId === id) out.push({ ...c, _local: true })
   }
   // Newest first.
-  return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+  return out
+    .filter((c) => !isCommentDeleted(c.id))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
 })
 
 // Click a tag chip on the detail view: filter the feed by that single tag and
@@ -164,6 +170,10 @@ function mergeKeepingLocal(current, fresh) {
   prunePendingComments(fresh)
   // Tombstones for entries aggregation has now dropped are no longer needed.
   pruneDeleted([...freshIds])
+  // Same for comment tombstones — once the deleted comment is gone from the
+  // aggregate there's nothing left to suppress. Takes entries, not ids: it
+  // flattens to comment ids itself.
+  pruneDeletedComments(fresh)
   // A deleted pending entry would otherwise be kept here forever: it never
   // reaches the aggregate, so !freshIds.has(id) stays true for good.
   const locals = current.filter((e) => e._local && !freshIds.has(e.id) && !isDeleted(e.id))
@@ -216,6 +226,17 @@ function onDeleted(id) {
     for (const c of orphans) removePendingComment(c.id)
     window.dispatchEvent(new CustomEvent('gc-comments-changed'))
   }
+}
+
+// The author deleted one of their own comments from the Mine tab. As with
+// onDeleted, the write to the data branch already succeeded; here we suppress
+// it locally until aggregation catches up. (DetailView does this inline for
+// its own list — it owns extra state we don't have here.)
+function onCommentDeleted(id) {
+  addDeletedComment(id)
+  // Drop it from pending too, or a reload would seed it back into the list.
+  removePendingComment(id)
+  commentsVersion.value++
 }
 
 onMounted(async () => {
@@ -275,6 +296,7 @@ onBeforeUnmount(() => {
           :myComments="myComments"
           @open="openDetail"
           @deleted="onDeleted"
+          @comment-deleted="onCommentDeleted"
         />
       </Transition>
     </main>
