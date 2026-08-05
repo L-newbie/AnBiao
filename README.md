@@ -6,29 +6,10 @@
     <img src="https://img.shields.io/badge/🚀_在线体验-点击访问-6366f1?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b" />
   </a>
   
-<br/>
-<br/>
-<img src="https://img.shields.io/badge/匿名投放-7c5cff?style=flat-square&labelColor=1a1a2e" />
-<img src="https://img.shields.io/badge/去中心化-7c5cff?style=flat-square&labelColor=1a1a2e" />
-<img src="https://img.shields.io/badge/公益-7c5cff?style=flat-square&labelColor=1a1a2e" />
-
 </div>
 
 ---
 
-<br>
-
-> 把某时某地说不清的那几秒，留在原地——等一个路过的人翻到。
-
-<br>
-
-一张图，一个坐标，寥寥数语。点一下，它就被投了出去——没有账号，没有登录，没有谁在后台盯着你的措辞。每个人都是匿名的，每一条都是一次投放。
-
-路过的人只看到一枚化名、一抹渐变色。**不足以指认你，却足以让同一双眼睛在第二次相遇时被认出来。**
-
-<br>
-
----
 
 <table>
 <tr>
