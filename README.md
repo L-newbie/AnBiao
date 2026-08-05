@@ -1,9 +1,5 @@
 <div align="center">
 
-<img src=".github/assets/banner.svg" width="100%" alt="proxima" />
-
-<br>
-
 # 比邻云 · proxima
 
 <br>
@@ -11,13 +7,6 @@
 <a href="https://l-newbie.github.io/proxima/">
   <img src="https://img.shields.io/badge/🚀_在线体验-点击访问-6366f1?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b" />
 </a>
-
-<br>
-
-<img src="https://img.shields.io/badge/Vue-3-4FC08D?style=flat-square&logo=vue.js&logoColor=white" />
-<img src="https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white" />
-<img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
-<img src="https://img.shields.io/badge/PWA-可安装-5A0FC8?style=flat-square&logo=pwa&logoColor=white" />
 
 </div>
 
