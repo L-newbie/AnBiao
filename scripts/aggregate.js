@@ -17,9 +17,10 @@ import { join, extname } from 'node:path'
 const SRC = './_data' // populated by deploy.yml (sparse checkout of data branch)
 const DIST = './dist'
 
-// Statuses kept out of the public feed. Their files stay on the data branch for
-// audit: 'hidden' is a moderation action, 'deleted' is the author removing
-// their own entry (see deleteEntry in src/lib/github.js).
+// Statuses kept out of the public feed, applied to both entries and individual
+// comments. Their data stays on the data branch for audit: 'hidden' is a
+// moderation action, 'deleted' is the author removing their own entry/comment
+// (see deleteEntry / deleteComment in src/lib/github.js).
 const HIDDEN_STATUSES = new Set(['hidden', 'deleted'])
 
 function loadEntries() {
@@ -30,10 +31,15 @@ function loadEntries() {
     if (!f.endsWith('.json')) continue
     try {
       const entry = JSON.parse(readFileSync(join(dir, f), 'utf8'))
-      // Sort comments by time for stable display. Existing fields (reports,
-      // comments, etc.) are preserved verbatim — nothing is stripped.
+      // Sort comments by time for stable display, and drop author-deleted ones
+      // from the public feed (deleteComment in src/lib/github.js flips their
+      // status in place; the objects stay in the file for audit, exactly like
+      // a deleted entry's file stays on the branch). Other existing fields
+      // (reports, etc.) are preserved verbatim — nothing is stripped.
       if (Array.isArray(entry.comments)) {
-        entry.comments.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+        entry.comments = entry.comments
+          .filter((c) => c && !HIDDEN_STATUSES.has(c.status))
+          .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
       }
       out.push(entry)
     } catch (e) {
