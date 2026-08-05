@@ -9,5 +9,15 @@
   "description": "Good",
   "tags": [],
   "image": "images/d2db2e81-6fc5-4afb-880a-a4e1a7664266.jpg",
-  "status": "published"
+  "status": "published",
+  "comments": [
+    {
+      "id": "f6290ed2-da9b-46a8-8e74-df37f892fbae",
+      "entryId": "d2db2e81-6fc5-4afb-880a-a4e1a7664266",
+      "deviceId": "fp-f4cdbd1e",
+      "author": "暮色听雨",
+      "text": "这个地方很美",
+      "createdAt": "2026-08-05T07:59:46.051Z"
+    }
+  ]
 }
