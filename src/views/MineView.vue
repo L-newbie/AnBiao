@@ -6,6 +6,7 @@ import StarIcon from '../components/StarIcon.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
 import { favoriteEntries } from '../lib/favorites.js'
+import { imageSrc, listSrc } from '../lib/images.js'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
@@ -54,14 +55,19 @@ const emptyText = {
   favorites: '还没有收藏。点开任意一条，按右上角的星形按钮。',
 }
 
-// Pending (_local) entries carry an absolute data-branch raw URL (their image
-// isn't in dist/images until a deploy); aggregated entries carry a relative
-// path. Use absolute URLs verbatim, prefix relative ones with BASE_URL —
-// matches EntryCard/DetailView.
-function imgSrc(e) {
-  const img = e.image
-  if (!img) return ''
-  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
+// Rows show the build-time thumbnail (they render at 48px — the full-size
+// original is ~1600px). Falls back to the original per-entry if the thumbnail
+// 404s, which happens when sharp failed on that one image at build time.
+// Keyed by id because both lists below render many rows from a v-for.
+const fellBack = ref(new Set())
+function rowSrc(e) {
+  return fellBack.value.has(e.id) ? imageSrc(e) : listSrc(e)
+}
+function onImgError(e) {
+  if (fellBack.value.has(e.id)) return
+  // Replace the Set rather than mutating: a plain .add() wouldn't retrigger
+  // the template (ref only tracks reassignment of the value itself).
+  fellBack.value = new Set(fellBack.value).add(e.id)
 }
 
 // Compact comment timestamp, matching DetailView's commentTime format.
@@ -147,7 +153,13 @@ function openComment(comment) {
             @click="emit('open', e)"
             class="flex items-center gap-3 text-left min-w-0 flex-1 hover:brightness-110"
           >
-            <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
+            <img
+              :src="rowSrc(e)"
+              loading="lazy"
+              decoding="async"
+              @error="onImgError(e)"
+              class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0"
+            />
             <div class="min-w-0 flex-1">
               <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
               <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
@@ -204,7 +216,13 @@ function openComment(comment) {
           @click="emit('open', e)"
           class="glass w-full rounded-2xl p-3 flex items-center gap-3 text-left hover:brightness-110"
         >
-          <img :src="imgSrc(e)" class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0" />
+          <img
+            :src="rowSrc(e)"
+            loading="lazy"
+            decoding="async"
+            @error="onImgError(e)"
+            class="h-12 w-12 rounded-xl object-cover bg-mist-800/40 shrink-0"
+          />
           <div class="min-w-0 flex-1">
             <p class="text-sm text-mist-text line-clamp-1">{{ e.city || e.address || '（无地址）' }}</p>
             <p class="text-xs text-mist-muted line-clamp-1">{{ e.description }}</p>
