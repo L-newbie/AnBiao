@@ -35,6 +35,16 @@ export function addPending(entry) {
   savePending(cur)
 }
 
+// Drop one pending entry by id — used when the author deletes an entry that
+// hasn't been aggregated yet. Without this, App's onMounted would restore it
+// from storage on the next load.
+export function removePending(id) {
+  if (!id) return loadPending()
+  const kept = loadPending().filter((e) => e.id !== id)
+  savePending(kept)
+  return kept
+}
+
 // Drop pending entries whose ids now appear in the live aggregate — they've
 // been promoted to the public feed and are no longer "pending".
 export function prunePending(liveIds) {
