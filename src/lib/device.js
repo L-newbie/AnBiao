@@ -55,6 +55,10 @@ function fingerprint() {
       ctx.fillStyle = '#f60'
       ctx.fillRect(0, 0, 240, 60)
       ctx.fillStyle = '#069'
+      // FROZEN STRING — do not rename to match the brand. This text is INPUT to
+      // the canvas fingerprint, so changing a single character changes every
+      // existing device's id, which resets their 化名, avatar and daily quotas.
+      // It survived the 暗标 → 比邻云 rename for exactly this reason.
       ctx.fillText('暗标·暮色拾光 记夕问茶 abc123', 2, 2)
       fp += '|' + c.toDataURL()
     }
