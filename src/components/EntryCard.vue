@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getPoeticName } from '../lib/device.js'
+import { imageSrc, listSrc } from '../lib/images.js'
 import FavButton from './FavButton.vue'
 
 const props = defineProps({
@@ -8,14 +9,15 @@ const props = defineProps({
 })
 const emit = defineEmits(['open'])
 
-// Pending entries carry an absolute data-branch raw URL (their image isn't in
-// dist/images until a deploy); aggregated entries carry a relative path. Use
-// absolute URLs verbatim, prefix relative ones with BASE_URL.
-const imgSrc = computed(() => {
-  const img = props.entry.image
-  if (!img) return ''
-  return /^(https?:)?\/\//.test(img) ? img : import.meta.env.BASE_URL + img
-})
+// Card shows the build-time thumbnail; the full-size original is only fetched
+// if that 404s (sharp failed on this one image at build time).
+const fellBack = ref(false)
+const imgSrc = computed(() =>
+  fellBack.value ? imageSrc(props.entry) : listSrc(props.entry),
+)
+function onImgError() {
+  fellBack.value = true
+}
 const locText = computed(() => {
   const parts = []
   if (props.entry.city) parts.push(props.entry.city)
@@ -46,7 +48,13 @@ const timeText = computed(() => {
     @click="emit('open', entry)"
   >
     <div class="relative">
-      <img :src="imgSrc" loading="lazy" class="h-40 w-full object-cover bg-mist-800/40" />
+      <img
+        :src="imgSrc"
+        loading="lazy"
+        decoding="async"
+        @error="onImgError"
+        class="h-40 w-full object-cover bg-mist-800/40"
+      />
       <span
         v-if="entry._local"
         class="absolute top-2 left-2 rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5"
