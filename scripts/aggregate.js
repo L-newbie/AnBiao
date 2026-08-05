@@ -1,6 +1,7 @@
 // Pre-build step: aggregate per-entry JSON files on the `data` branch into a
-// single dist/data.json, and copy images into dist/images. Hidden entries are
-// excluded from the public feed but their files stay in the repo for audit.
+// single dist/data.json, and copy images into dist/images. Hidden and
+// author-deleted entries are excluded from the public feed but their files
+// stay in the repo for audit.
 //
 // Run AFTER vite build so we operate on dist/.  (package.json runs this before
 // vite build; see note in deploy workflow: we run it against a staging copy.)
@@ -15,6 +16,11 @@ import { join, extname } from 'node:path'
 
 const SRC = './_data' // populated by deploy.yml (sparse checkout of data branch)
 const DIST = './dist'
+
+// Statuses kept out of the public feed. Their files stay on the data branch for
+// audit: 'hidden' is a moderation action, 'deleted' is the author removing
+// their own entry (see deleteEntry in src/lib/github.js).
+const HIDDEN_STATUSES = new Set(['hidden', 'deleted'])
 
 function loadEntries() {
   const dir = join(SRC, 'data')
@@ -56,7 +62,9 @@ function main() {
     return
   }
   const all = loadEntries()
-  const published = all.filter((e) => e && e.status !== 'hidden' && e.lat && e.lng && e.image)
+  const published = all.filter(
+    (e) => e && !HIDDEN_STATUSES.has(e.status) && e.lat && e.lng && e.image,
+  )
   if (!existsSync(DIST)) mkdirSync(DIST, { recursive: true })
   writeFileSync(join(DIST, 'data.json'), JSON.stringify(published))
   copyImages()
