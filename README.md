@@ -2,7 +2,7 @@
 
 # 比邻云 · proxima
 
-<br>
+
 
 <a href="https://l-newbie.github.io/proxima/">
   <img src="https://img.shields.io/badge/🚀_在线体验-点击访问-6366f1?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b" />
@@ -10,6 +10,55 @@
 
 </div>
 
+
+---
+
+<div align="center">
+
+## ◑ 公开 . 私密
+
+<br>
+
+<table>
+<tr>
+<td align="center" width="50%">
+
+### 🌐 公开
+
+<br>
+
+留在 **公开记录** 里
+<br>↓<br>
+所有人都看得到
+<br>↓<br>
+可以被留言、收藏
+
+</td>
+<td align="center" width="50%">
+
+### 🔒 私密
+
+<br>
+
+只留在 **我的 · 记录**
+<br>↓<br>
+不进公开记录
+<br>↓<br>
+只有自己看得到
+
+</td>
+</tr>
+</table>
+
+<br>
+
+上传时默认公开。不想给别人看的，把勾去掉就好。
+<br>
+已经发出去的，也能在「我的 · 记录」里随时改。
+
+
+
+</div>
 
 ---
 
