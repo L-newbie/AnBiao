@@ -22,6 +22,10 @@ const tags = ref([])
 const tagInput = ref('')
 const tagOpen = ref(false)
 const tagRoot = ref(null)
+// Public by default — the common case is sharing, and a private upload should
+// be a deliberate opt-out. Bound to the checkbox as a boolean, stored as the
+// 'public'/'private' string the entry JSON carries.
+const isPublic = ref(true)
 const busy = ref(false)
 const msg = ref('')
 const err = ref('')
@@ -61,6 +65,7 @@ function reset() {
   tags.value = []
   tagInput.value = ''
   tagOpen.value = false
+  isPublic.value = true
   busy.value = false
   msg.value = ''
   err.value = ''
@@ -189,6 +194,7 @@ async function submit() {
     const id = crypto.randomUUID()
     const imageExt = 'jpg'
     const finalTags = [...tags.value]
+    const visibility = isPublic.value ? 'public' : 'private'
     await uploadEntry({
       id,
       deviceId: getDeviceId(),
@@ -200,10 +206,13 @@ async function submit() {
       tags: finalTags,
       imageB64: base64,
       imageExt,
+      visibility,
     })
     recordUpload()
     remaining.value = remainingToday(config.maxUploadsPerDay)
-    msg.value = '上传成功！'
+    // A private record is finished the moment it's saved — nothing is waiting
+    // to be published, so the wording shouldn't imply anything is in flight.
+    msg.value = visibility === 'private' ? '已保存，仅自己可见' : '发布成功！'
     // Optimistic entry: image points at the data branch's raw URL (NOT the
     // dist/images relative path), because data.json only rebuilds on a master
     // deploy — until then the only live copy of the image is on the data
@@ -221,6 +230,7 @@ async function submit() {
       tags: finalTags,
       image: imageUrl,
       status: 'published',
+      visibility,
       _local: true,
     })
     setTimeout(close, 900)
@@ -388,6 +398,22 @@ const sizeHint = computed(() => (file.value ? prettyBytes(file.value.size) : '')
             <span v-else class="text-[10px] text-mist-muted/50">点击打开地图</span>
           </button>
         </div>
+
+        <!-- visibility: public by default, unchecking keeps it to yourself -->
+        <label class="glass rounded-2xl px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:brightness-110">
+          <input
+            v-model="isPublic"
+            type="checkbox"
+            class="w-4 h-4 shrink-0 accent-[color:var(--color-accent)] cursor-pointer"
+          />
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm text-mist-text">公开这条记录</span>
+            <span class="block text-[11px] text-mist-muted/70">
+              {{ isPublic ? '所有人都能在「公开记录」中看到' : '仅自己可见，只出现在「我的 · 记录」' }}
+            </span>
+          </span>
+          <span class="shrink-0 text-base leading-none opacity-80">{{ isPublic ? '🌐' : '🔒' }}</span>
+        </label>
 
         <p v-if="err" class="text-sm text-rose-glow">{{ err }}</p>
         <p v-if="msg" class="text-sm text-emerald-300">{{ msg }}</p>
