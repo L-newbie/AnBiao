@@ -2,10 +2,12 @@
 import { computed, ref } from 'vue'
 import Avatar from '../components/Avatar.vue'
 import DeleteButton from '../components/DeleteButton.vue'
+import VisibilityToggle from '../components/VisibilityToggle.vue'
 import StarIcon from '../components/StarIcon.vue'
 import { config } from '../lib/config.js'
 import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
 import { favoriteEntries } from '../lib/favorites.js'
+import { visibilityOf, visibilityOverrides, isSyncing, PUBLIC } from '../lib/entryVisibility.js'
 import { imageSrc, listSrc } from '../lib/images.js'
 
 const props = defineProps({
@@ -14,8 +16,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['open', 'deleted', 'comment-deleted'])
 
-// Last delete failure, shown under the list. Cleared on the next attempt.
-// Shared by both sections — only one is on screen at a time.
+// Last delete / visibility failure, shown under the list. Cleared on the next
+// attempt. Shared by both sections — only one is on screen at a time.
 const delErr = ref('')
 function onDeleted(id) {
   delErr.value = ''
@@ -23,6 +25,11 @@ function onDeleted(id) {
 }
 function onDeleteError(msg) {
   delErr.value = msg
+}
+// The toggle already wrote to the data branch and set the local override, so
+// there's nothing to propagate — just clear any stale error.
+function onVisibilityToggled() {
+  delErr.value = ''
 }
 function onCommentDeleted(id) {
   delErr.value = ''
@@ -33,10 +40,22 @@ const id = getDeviceId()
 const poeticName = getPoeticName(id)
 const code = maskedDeviceCode(id)
 
+// The Mine tab receives the unfiltered author-side list, so this is where my
+// own private entries show up (they're excluded from the public feed upstream).
 const mine = computed(() => props.entries.filter((e) => e.deviceId === id))
 // favoriteEntries reads the shared reactive `favorites` ref, so un-starring an
 // entry from this list drops it here immediately.
-const favs = computed(() => favoriteEntries(props.entries))
+//
+// Someone else's entry that has since gone private is dropped: it was starred
+// while public, and it would otherwise sit here forever in a stranger's list.
+// My own private entries stay — being private is the point, not a reason to
+// hide them from me.
+const favs = computed(() => {
+  void visibilityOverrides.value
+  return favoriteEntries(props.entries).filter(
+    (e) => e.deviceId === id || visibilityOf(e) === PUBLIC,
+  )
+})
 const remaining = remainingToday(config.maxUploadsPerDay)
 const used = uploadsToday()
 
@@ -166,15 +185,16 @@ function openComment(comment) {
             </div>
           </button>
           <span
-            v-if="e._local"
+            v-if="isSyncing(e)"
             class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
-          >等待通过</span>
+          >同步中</span>
+          <VisibilityToggle :entry="e" @toggled="onVisibilityToggled" @error="onDeleteError" />
           <DeleteButton :entry-id="e.id" @deleted="onDeleted" @error="onDeleteError" />
         </div>
         <p v-if="delErr" class="text-[11px] text-rose-glow px-1">{{ delErr }}</p>
       </template>
 
-      <!-- 留言 (live + still-pending ones, flagged 等待通过) — a plain div for
+      <!-- 留言 (live + still-pending ones, flagged 同步中) — a plain div for
            the same reason as 记录 above: the row holds both an open action and
            a delete button, and buttons can't nest. -->
       <template v-else-if="section === 'comments'">
@@ -190,13 +210,13 @@ function openComment(comment) {
           >
             <p class="text-sm text-mist-muted leading-relaxed line-clamp-2 break-all">{{ c.text }}</p>
             <p class="text-xs text-mist-muted/70 mt-1 line-clamp-1">
-              {{ commentTime(c) }} · {{ entryOf(c) ? (entryOf(c).city || entryOf(c).address || '该记录') : '记录待审核' }}
+              {{ commentTime(c) }} · {{ entryOf(c) ? (entryOf(c).city || entryOf(c).address || '该记录') : '记录同步中' }}
             </p>
           </button>
           <span
             v-if="c._local"
             class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
-          >等待通过</span>
+          >同步中</span>
           <DeleteButton
             :entry-id="c.entryId"
             :comment-id="c.id"
