@@ -4,7 +4,7 @@
 // optimistic entry — it's gone from both the server aggregate and memory.
 //
 // We keep the full entry objects here so the feed can restore them on load
-// (still flagged `_local`, showing the "等待通过" badge). Once a fetch finds
+// (still flagged `_local`, showing the "同步中" badge). Once a fetch finds
 // the entry's id in the live aggregate, it's promoted out of pending.
 //
 // Stored as a plain JSON array under gc_pending.
