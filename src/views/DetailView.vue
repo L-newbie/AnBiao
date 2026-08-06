@@ -5,6 +5,7 @@ import { addComment } from '../lib/github.js'
 import { config } from '../lib/config.js'
 import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
 import { deletedComments, isCommentDeleted, addDeletedComment } from '../lib/deletedComments.js'
+import { visibilityOf, visibilityOverrides, isSyncing, PRIVATE } from '../lib/entryVisibility.js'
 import { imageSrc } from '../lib/images.js'
 import FavButton from '../components/FavButton.vue'
 import DeleteButton from '../components/DeleteButton.vue'
@@ -20,6 +21,21 @@ const imgSrc = computed(() => imageSrc(props.entry))
 
 const authorName = computed(() => getPoeticName(props.entry.deviceId || ''))
 const avatar = computed(() => getAvatar(props.entry.deviceId || ''))
+
+// Visibility indicator. A private entry is only reachable from 我的·记录, but
+// showing the state on both makes it unambiguous which one you're looking at —
+// the author sees 公开 / 仅自己可见 on their own entries either way.
+const isPrivateEntry = computed(() => {
+  // Touch the override store so a toggle elsewhere re-renders this chip.
+  void visibilityOverrides.value
+  return visibilityOf(props.entry) === PRIVATE
+})
+const isMyEntry = computed(() => props.entry.deviceId === getDeviceId())
+// Private entries never show the sync badge — see isSyncing.
+const syncing = computed(() => {
+  void visibilityOverrides.value
+  return isSyncing(props.entry)
+})
 
 const locText = computed(() => {
   const parts = []
@@ -81,7 +97,7 @@ function closeLightbox() {
 // ---- Comments ----
 // Optimistic local comments appended on submit; merged with persisted ones.
 // Seeded from pendingCommentsFor so a page refresh / re-open restores the
-// commenter's own pending comments (flagged "等待通过"), mirroring how uploads
+// commenter's own pending comments (flagged "同步中"), mirroring how uploads
 // survive a refresh via pending.js. Others' comments only appear once they're
 // aggregated into entry.comments (after a deploy).
 const localComments = ref(pendingCommentsFor(props.entry.id))
@@ -157,7 +173,7 @@ async function submitComment() {
   const trimmed = text.value.trim()
   if (!trimmed) return (err.value = '请输入留言')
   if (trimmed.length > config.maxCommentLength) return (err.value = `留言不能超过 ${config.maxCommentLength} 字`)
-  if (props.entry._local) return (err.value = '本条尚未通过，暂不能留言')
+  if (props.entry._local) return (err.value = '本条还在同步中，稍后可留言')
   if (remaining.value <= 0) return (err.value = `今日留言已达上限（${config.maxCommentsPerDay} 条）`)
 
   busy.value = true
@@ -239,9 +255,19 @@ async function submitComment() {
         <p class="text-xs text-mist-muted">{{ timeText }}</p>
       </div>
       <span
-        v-if="entry._local"
+        v-if="syncing"
         class="rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5 shrink-0"
-      >等待通过</span>
+      >同步中</span>
+      <!-- visibility: always flagged when private; the 公开 counterpart is only
+           shown to the author, for whom it's an actionable state. -->
+      <span
+        v-if="isPrivateEntry"
+        class="rounded-full bg-mist-600/60 text-mist-text text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap"
+      >🔒 仅自己可见</span>
+      <span
+        v-else-if="isMyEntry"
+        class="rounded-full bg-accent/15 text-accent text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap"
+      >🌐 公开</span>
       <FavButton :entry-id="entry.id" variant="detail" />
     </div>
 
@@ -298,7 +324,7 @@ async function submitComment() {
           <div class="flex items-center justify-between gap-2 mb-1">
             <span class="font-serif text-xs text-mist-text">
               {{ c.author || '匿名' }}
-              <span v-if="c._local" class="text-amber-300/80">· 等待通过</span>
+              <span v-if="c._local" class="text-amber-300/80">· 同步中</span>
             </span>
             <span class="flex items-center gap-1.5 shrink-0">
               <span class="text-[10px] text-mist-muted/70 font-mono">{{ commentTime(c) }}</span>
@@ -320,7 +346,7 @@ async function submitComment() {
 
       <!-- comment input -->
       <div v-if="entry._local" class="text-xs text-amber-300/80">
-        本条尚未通过，暂不能留言
+        本条还在同步中，稍后可留言
       </div>
       <div v-else>
         <textarea
