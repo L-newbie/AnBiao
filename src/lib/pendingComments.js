@@ -5,7 +5,7 @@
 // a comment is invisible site-wide until then. That's the "deploy = review"
 // gate. What's missing without this file is the optimistic half: the commenter
 // themselves should see their own pending comment immediately AND after a page
-// refresh, flagged "等待通过", mirroring how uploads use _local.
+// refresh, flagged "同步中", mirroring how uploads use _local.
 //
 // We store the full comment objects (each tagged with its entryId) under
 // gc_pending_comments. Once a fetch finds a comment's id already in the live
