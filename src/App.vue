@@ -15,6 +15,7 @@ import { loadPending, addPending, prunePending, removePending } from './lib/pend
 import { prunePendingComments, loadPendingComments, removePendingComment } from './lib/pendingComments.js'
 import { isDeleted, addDeleted, pruneDeleted } from './lib/deletedEntries.js'
 import { deletedComments, isCommentDeleted, addDeletedComment, pruneDeletedComments } from './lib/deletedComments.js'
+import { visibilityOf, visibilityOverrides, pruneVisibilityOverrides, PUBLIC } from './lib/entryVisibility.js'
 
 const TAB_KEY = 'gc_tab'
 const AUTO_REFRESH_MS = 15 * 1000 // 15 seconds
@@ -62,22 +63,36 @@ let autoTimer = null
 // Show newest first. (The report/hidden flow was removed, so every published
 // entry is visible.) Entries the author just deleted are suppressed by their
 // tombstone until aggregation drops them from data.json for good.
-const visible = computed(() =>
+//
+// This is the AUTHOR-side list: it still contains private entries, because the
+// Mine tab has to show the author their own. The public feed filters further
+// via visibleCommunity below.
+const visibleAll = computed(() =>
   entries.value
     .filter((e) => e.status !== 'hidden' || e._local)
     .filter((e) => !isDeleted(e.id))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
 )
 
-// Tag options derived from the visible feed (hidden entries' tags don't
-// populate the filter/upload chips). selectedTags is owned here so the detail
-// view can set it; useTagFilter gives persistence + stale-tag pruning for free.
-const allTags = computed(() => tagsFromEntries(visible.value))
+// The public feed. Private entries stay in data.json (aggregation doesn't strip
+// them — see src/lib/entryVisibility.js) so hiding them is this filter's job.
+const visibleCommunity = computed(() => {
+  // Touch the override store: visibilityOf reads it inside the callback, which
+  // Vue can't see, so without this a toggle wouldn't update the feed.
+  void visibilityOverrides.value
+  return visibleAll.value.filter((e) => visibilityOf(e) === PUBLIC)
+})
+
+// Tag options derived from the PUBLIC feed only — a private entry's tags must
+// not leak into the filter chips or the upload modal's suggestions.
+// selectedTags is owned here so the detail view can set it; useTagFilter gives
+// persistence + stale-tag pruning for free.
+const allTags = computed(() => tagsFromEntries(visibleCommunity.value))
 const { selected: selectedTags } = useTagFilter(allTags)
 
 // "My comments" for the Mine tab: this device's comments across the live feed,
 // PLUS their own still-pending (not-yet-aggregated) comments from localStorage.
-// Pending ones carry entryId + _local so MineView can badge them 等待通过 and
+// Pending ones carry entryId + _local so MineView can badge them 同步中 and
 // jump to the right detail.
 const myComments = computed(() => {
   // Touch commentsVersion so a localStorage-only change (pending comment added/
@@ -88,7 +103,7 @@ const myComments = computed(() => {
   void deletedComments.value
   const id = getDeviceId()
   const out = []
-  for (const e of visible.value) {
+  for (const e of visibleAll.value) {
     if (!Array.isArray(e.comments)) continue
     for (const c of e.comments) {
       if (c && c.deviceId === id) out.push({ ...c, entryId: e.id, _local: false })
@@ -166,7 +181,7 @@ function mergeKeepingLocal(current, fresh) {
   const freshIds = new Set(fresh.map((e) => e.id))
   prunePending([...freshIds])
   // Comments aggregated into the live feed are promoted out of pending too —
-  // drop them so they stop showing as "等待通过" once the server copy arrives.
+  // drop them so they stop showing as "同步中" once the server copy arrives.
   prunePendingComments(fresh)
   // Tombstones for entries aggregation has now dropped are no longer needed.
   pruneDeleted([...freshIds])
@@ -174,6 +189,9 @@ function mergeKeepingLocal(current, fresh) {
   // aggregate there's nothing left to suppress. Takes entries, not ids: it
   // flattens to comment ids itself.
   pruneDeletedComments(fresh)
+  // Visibility overrides the aggregate has caught up with. Takes entries, not
+  // ids: an override is only redundant once the live value MATCHES it.
+  pruneVisibilityOverrides(fresh)
   // A deleted pending entry would otherwise be kept here forever: it never
   // reaches the aggregate, so !freshIds.has(id) stays true for good.
   const locals = current.filter((e) => e._local && !freshIds.has(e.id) && !isDeleted(e.id))
@@ -219,7 +237,7 @@ function onDeleted(id) {
   // otherwise onMounted would restore it on the next load.
   removePending(id)
   // Our own not-yet-aggregated comments on it would linger forever, showing as
-  // disabled "记录待审核" rows in the Mine tab (they can never be pruned — the
+  // disabled "记录同步中" rows in the Mine tab (they can never be pruned — the
   // entry won't reappear in the aggregate to prune them against).
   const orphans = loadPendingComments().filter((c) => c && c.entryId === id)
   if (orphans.length) {
@@ -243,7 +261,7 @@ onMounted(async () => {
   loading.value = true
   try {
     // Restore entries submitted since the last deploy (not yet in data.json).
-    // They keep _local so cards show the "等待通过" badge until they're aggregated.
+    // They keep _local so cards show the "同步中" badge until they're aggregated.
     const pending = loadPending()
     const server = await loadEntries()
     const serverIds = new Set(server.map((e) => e.id))
@@ -282,7 +300,7 @@ onBeforeUnmount(() => {
         <CommunityView
           v-else-if="tab === 'community'"
           key="community"
-          :entries="visible"
+          :entries="visibleCommunity"
           :loading="loadingForView"
           :pull="pull"
           v-model:selectedTags="selectedTags"
@@ -292,7 +310,7 @@ onBeforeUnmount(() => {
         <MineView
           v-else
           key="mine"
-          :entries="visible"
+          :entries="visibleAll"
           :myComments="myComments"
           @open="openDetail"
           @deleted="onDeleted"
