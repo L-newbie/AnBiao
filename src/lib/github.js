@@ -39,7 +39,7 @@ async function putFile(path, contentB64, message, sha) {
 }
 
 // Upload one image + its metadata JSON as two new files. UUID paths => no race.
-export async function uploadEntry({ id, deviceId, lat, lng, city, address, description, tags, imageB64, imageExt }) {
+export async function uploadEntry({ id, deviceId, lat, lng, city, address, description, tags, imageB64, imageExt, visibility = 'public' }) {
   const imgPath = `images/${id}.${imageExt}`
   const jsonPath = `data/${id}.json`
   await putFile(imgPath, imageB64, `chore: add image ${id}`)
@@ -55,6 +55,10 @@ export async function uploadEntry({ id, deviceId, lat, lng, city, address, descr
     tags: Array.isArray(tags) ? tags : [],
     image: imgPath,
     status: 'published',
+    // 'private' entries are still aggregated into the public data.json — the
+    // app filters them out of the community feed and shows them only to their
+    // author. See src/lib/entryVisibility.js for why.
+    visibility: visibility === 'private' ? 'private' : 'public',
   }
   await putFile(jsonPath, utf8ToB64(JSON.stringify(entry, null, 2)), `chore: add entry ${id}`)
   return entry
@@ -104,7 +108,7 @@ export async function addComment(entryId, comment) {
 // SHA + 409 retry shape as addComment; every other field (comments, reports,
 // image, …) is preserved verbatim.
 //
-// Note pending ("等待通过") entries already have their file on the data branch —
+// Note pending ("同步中") entries already have their file on the data branch —
 // uploadEntry writes it before returning — so this works for them too.
 export async function deleteEntry(entryId) {
   const path = `data/${entryId}.json`
@@ -131,6 +135,41 @@ export async function deleteEntry(entryId) {
     throw new Error(`删除失败 ${res.status}: ${t}`)
   }
   throw new Error('删除失败：多次冲突，请稍后重试')
+}
+
+// Flip an entry between public and private. Same read-modify-write + SHA + 409
+// retry shape as deleteEntry, and for the same reason — a comment landing on
+// the entry between our read and write must not be clobbered. Every other
+// field is preserved verbatim; only `visibility` changes.
+//
+// Unlike deleteEntry, this does NOT keep the entry out of the aggregate:
+// scripts/aggregate.js still emits private entries into data.json so their
+// author can see them in 我的·记录 after a cache clear or on another device.
+// The app is what hides them from the public feed.
+export async function setEntryVisibility(entryId, visibility) {
+  const next = visibility === 'private' ? 'private' : 'public'
+  const path = `data/${entryId}.json`
+  const MAX_TRIES = 3
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    const meta = await getFileMeta(path)
+    if (!meta) throw new Error('找不到该记录')
+    const entry = JSON.parse(b64ToUtf8(meta.content))
+    entry.visibility = next
+    const b64 = utf8ToB64(JSON.stringify(entry, null, 2))
+    const res = await fetch(API + repoPath(path), {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ message: `chore: set visibility ${entryId} ${next}`, content: b64, branch: config.dataBranch, sha: meta.sha }),
+    })
+    if (res.ok) return res.json()
+    if (res.status === 409 && attempt < MAX_TRIES) {
+      // Someone else updated the file since we read it; retry with a fresh SHA.
+      continue
+    }
+    const t = await res.text()
+    throw new Error(`修改可见性失败 ${res.status}: ${t}`)
+  }
+  throw new Error('修改可见性失败：多次冲突，请稍后重试')
 }
 
 // Soft-delete ONE comment on an entry: flip that comment's status to 'deleted'
