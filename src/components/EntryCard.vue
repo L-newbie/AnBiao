@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { getPoeticName } from '../lib/device.js'
 import { imageSrc, listSrc } from '../lib/images.js'
+import { isSyncing, visibilityOverrides } from '../lib/entryVisibility.js'
 import FavButton from './FavButton.vue'
 
 const props = defineProps({
@@ -26,6 +27,11 @@ const locText = computed(() => {
   return parts.join(' · ') || '（无地址）'
 })
 const authorName = computed(() => getPoeticName(props.entry.deviceId || ''))
+// Private entries never show the sync badge — see isSyncing.
+const syncing = computed(() => {
+  void visibilityOverrides.value
+  return isSyncing(props.entry)
+})
 const timeText = computed(() => {
   if (!props.entry.createdAt) return ''
   try {
@@ -56,10 +62,10 @@ const timeText = computed(() => {
         class="h-40 w-full object-cover bg-mist-800/40"
       />
       <span
-        v-if="entry._local"
+        v-if="syncing"
         class="absolute top-2 left-2 rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5"
       >
-        等待通过
+        同步中
       </span>
       <!-- @click.stop inside FavButton keeps this from opening the detail view -->
       <FavButton :entry-id="entry.id" variant="card" />
