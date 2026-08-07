@@ -18,6 +18,7 @@ import { loadAMap } from '../lib/amap.js'
 import { entriesWithCoords } from '../lib/geo.js'
 import { listSrc } from '../lib/images.js'
 import { pushToast } from '../lib/toast.js'
+import { visited } from '../lib/visited.js'
 
 const CITY_TILL = 9
 const PIN_FROM = 14
@@ -48,6 +49,7 @@ let AMap = null
 let markersById = new Map() // entry.id -> AMap.Marker
 let bubbleMarkers = new Map() // city -> AMap.Marker
 let searchMarker = null
+let visitedMarkers = new Map() // visited.id -> AMap.Marker (personal pins)
 
 // `entries` arrives already filtered (city+tag) by App.vue — we just keep the
 // ones with coordinates. Internal filtering here used to duplicate the work
@@ -239,6 +241,57 @@ function onMoveEnd() {
   syncMap()
 }
 
+// React to the "I've been here" check-ins changing: they carry their own
+// marker layer (separate from the community markers).
+watch(visited, syncVisitedPins, { deep: true })
+
+// ---- Personal visited pins (我 去过这里) -----------------------------------
+// One small accent-ish pin per visited place. They show at every zoom tier
+// (unlike the community pins which tier-swap dots→photos) so the user's own
+// travels are always visible.
+function makeVisitedContent() {
+  const el = document.createElement('div')
+  el.className = 'gc-visited'
+  el.title = '我去过这里'
+  return el
+}
+
+function syncVisitedPins() {
+  if (!map || !AMap) {
+    for (const marker of visitedMarkers.values()) marker.setMap(null)
+    visitedMarkers.clear()
+    return
+  }
+  const wanted = new Map(visited.value.map((v) => [v.id, v]))
+  // Remove stale pins
+  for (const [id, marker] of visitedMarkers) {
+    if (!wanted.has(id)) {
+      marker.setMap(null)
+      visitedMarkers.delete(id)
+    }
+  }
+  // Add/update needed pins
+  for (const [id, v] of wanted) {
+    let marker = visitedMarkers.get(id)
+    if (!marker) {
+      marker = new AMap.Marker({
+        position: [Number(v.lng), Number(v.lat)],
+        content: makeVisitedContent(),
+        offset: new AMap.Pixel(-8, -8),
+        anchor: 'center',
+        zIndex: 40,
+      })
+      marker.on('click', () => {
+        pushToast(`你在这儿的 ${v.city || '这个地方'} 留下过脚印`, { type: 'success' })
+      })
+      visitedMarkers.set(id, marker)
+    } else {
+      marker.setPosition([Number(v.lng), Number(v.lat)])
+    }
+    marker.setMap(map)
+  }
+}
+
 // ---- Geolocation (startup locate + manual locate button) -----------------
 // `locate()` is the single geolocation path shared by the auto-locate-at-boot
 // and the top-right 📍 button. We deliberately do NOT enable 高德's follow-mode:
@@ -281,6 +334,7 @@ async function initMap() {
   map.on('zoomend', onZoomEnd)
   map.on('moveend', onMoveEnd)
   syncMap()
+  syncVisitedPins()
 
   // Startup centering:
   //  1. default = user's current location (silently, if permission was
@@ -369,6 +423,17 @@ watch(
     }, 3000)
   },
 )
+
+// First meaningful dataset: zoom the map to fit all markers once. (When the
+// app boots we have no entries yet — the initial setFitView call in initMap
+// sees an empty list. This watcher fires the first time real data arrives.)
+let didInitialFit = false
+watch(visible, (list) => {
+  if (!didInitialFit && list.length) {
+    didInitialFit = true
+    if (map) map.setFitView(null, false, [80, 80, 80, 80], 14)
+  }
+})
 
 // When upstream entries merge (silentFetch, optimistic _local, outbox sync),
 // refresh markers. In city tier, bubbles re-render; in marker tiers, new ids
@@ -533,6 +598,24 @@ onBeforeUnmount(() => {
   box-shadow:
     0 0 0 6px rgba(14, 165, 183, 0.18),
     0 2px 8px rgba(15, 42, 58, 0.4);
+}
+
+/* Personal "I've been here" pins: punchy coral dot, small but unmistakable.
+   Intentionally distinct from community pins (cyan/blue) so the user sees
+   their own travels at a glance. */
+.gc-visited {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f43f5e, #f97316);
+  border: 2.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 4px rgba(244, 63, 94, 0.18),
+    0 1px 4px rgba(15, 42, 58, 0.35);
+  transition: transform 0.15s ease;
+}
+.gc-visited:hover {
+  transform: scale(1.2);
 }
 
 /* Search target pulse. */

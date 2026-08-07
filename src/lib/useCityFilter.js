@@ -53,7 +53,14 @@ export function useCityFilter(citiesRef) {
     selected.value = []
   }
 
-  return { selected, toggle, clear }
+  // Direct assignment (used by parent components sharing the state across
+  // views — e.g. App.vue syncing the feed's filter row with the map chrome).
+  // The same localStorage watch persists whatever lands here.
+  function set(arr) {
+    selected.value = Array.isArray(arr) ? arr : []
+  }
+
+  return { selected, toggle, clear, set }
 }
 
 // Filtering logic shared by the community view.

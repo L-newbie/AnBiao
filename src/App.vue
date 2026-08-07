@@ -151,8 +151,8 @@ const visibleCommunity = computed(() => {
 // Lives BELOW visibleCommunity: useTagFilter/useCityFilter attach eager
 // watchers on their tag/city sources, so they must not be created before the
 // computed they read from.
-const { selected: selectedTags } = useTagFilter(computed(() => tagsFromEntries(visibleCommunity.value)))
-const { selected: selectedCities } = useCityFilter(computed(() => citiesFromEntries(visibleCommunity.value)))
+const { selected: selectedTags, set: setSelectedTags } = useTagFilter(computed(() => tagsFromEntries(visibleCommunity.value)))
+const { selected: selectedCities, set: setSelectedCities } = useCityFilter(computed(() => citiesFromEntries(visibleCommunity.value)))
 
 // The feed and the map see the exact same slice. Applying the filters HERE
 // (once) instead of inside each view keeps them permanently in lock-step:

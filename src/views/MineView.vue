@@ -11,6 +11,8 @@ import { visibilityOf, visibilityOverrides, isSyncing, PUBLIC } from '../lib/ent
 import { imageSrc, listSrc } from '../lib/images.js'
 import { listOps, retryOp, discardOp, outboxCount } from '../lib/outbox.js'
 import { drainOutbox } from '../lib/sync.js'
+import { visited, visitedCount, removeVisited } from '../lib/visited.js'
+import { pushToast } from '../lib/toast.js'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
@@ -68,12 +70,14 @@ const sections = computed(() => [
   { key: 'entries', label: '记录', count: mine.value.length },
   { key: 'comments', label: '留言', count: props.myComments.length },
   { key: 'favorites', label: '收藏', count: favs.value.length },
+  { key: 'visited', label: '足迹', count: visitedCount() },
 ])
 
 const emptyText = {
   entries: '还没有留下什么。去投一条吧。',
   comments: '还没有说过话。',
   favorites: '还没有收藏。点开任意一条，按右上角的星形按钮。',
+  visited: '还没有标记足迹。打开任何一条记录，点「我去过这里」。',
 }
 
 // Rows show the build-time thumbnail (they render at 48px — the full-size
@@ -202,18 +206,22 @@ defineExpose({ queueEl })
     </section>
 
     <!-- stats -->
-    <section class="grid grid-cols-3 gap-3">
-      <div class="glass rounded-2xl p-4 text-center">
+    <section class="grid grid-cols-4 gap-3">
+      <div class="glass rounded-2xl p-3 text-center">
         <p class="font-serif text-2xl text-mist-text">{{ mine.length }}</p>
-        <p class="text-xs text-mist-muted mt-1">我的记录</p>
+        <p class="text-[11px] text-mist-muted mt-1">记录</p>
       </div>
-      <div class="glass rounded-2xl p-4 text-center">
+      <div class="glass rounded-2xl p-3 text-center">
+        <p class="font-serif text-2xl text-accent">{{ visitedCount() }}</p>
+        <p class="text-[11px] text-mist-muted mt-1">足迹</p>
+      </div>
+      <div class="glass rounded-2xl p-3 text-center">
         <p class="font-serif text-2xl text-mist-text">{{ used }}</p>
-        <p class="text-xs text-mist-muted mt-1">今日已传</p>
+        <p class="text-[11px] text-mist-muted mt-1">今日已传</p>
       </div>
-      <div class="glass rounded-2xl p-4 text-center">
+      <div class="glass rounded-2xl p-3 text-center">
         <p class="font-serif text-2xl text-rose-glow">{{ remaining }}</p>
-        <p class="text-xs text-mist-muted mt-1">今日剩余</p>
+        <p class="text-[11px] text-mist-muted mt-1">今日剩余</p>
       </div>
     </section>
 
@@ -244,7 +252,7 @@ defineExpose({ queueEl })
     </section>
 
     <!-- section switcher: 记录 / 留言 / 收藏 -->
-    <section class="glass rounded-2xl p-1 grid grid-cols-3 gap-1">
+    <section class="glass rounded-2xl p-1 grid grid-cols-4 gap-1">
       <button
 
         v-for="s in sections"
@@ -331,7 +339,7 @@ defineExpose({ queueEl })
       </template>
 
       <!-- 收藏 -->
-      <template v-else>
+      <template v-else-if="section === 'favorites'">
         <button
           v-for="e in favs"
           :key="e.id"
@@ -351,6 +359,32 @@ defineExpose({ queueEl })
           </div>
           <StarIcon filled class="w-4 h-4 text-amber-500 shrink-0" />
         </button>
+      </template>
+
+      <!-- 足迹 -->
+      <template v-else-if="section === 'visited'">
+        <div
+          v-for="v in [...visited].reverse()"
+          :key="v.id"
+          class="glass w-full rounded-2xl p-3 flex items-center gap-3"
+        >
+          <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style="background: linear-gradient(135deg, #f43f5e, #f97316)">
+            <span class="text-base">📍</span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-mist-text line-clamp-1">{{ v.city || v.address || '未命名地点' }}</p>
+            <p class="text-[11px] text-mist-muted/70 line-clamp-1">
+              {{ new Date(v.savedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
+              <span v-if="v.address && v.address !== v.city"> · {{ v.address }}</span>
+            </p>
+          </div>
+          <button
+            @click="removeVisited(v.lat, v.lng); pushToast('已移除足迹')"
+            class="text-xs text-mist-muted/60 hover:text-rose-glow shrink-0"
+            aria-label="移除足迹"
+          >移除</button>
+        </div>
       </template>
 
       <!-- empty state for whichever section is active -->
