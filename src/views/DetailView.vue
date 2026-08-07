@@ -1,23 +1,38 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getPoeticName, getAvatar, getDeviceId, commentsToday, remainingCommentsToday, recordComment } from '../lib/device.js'
-import { addComment } from '../lib/github.js'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { getPoeticName, getAvatar, getDeviceId, remainingCommentsToday, recordComment } from '../lib/device.js'
+import { addComment, QueuedOfflineError } from '../lib/github.js'
 import { config } from '../lib/config.js'
 import { addPendingComment, pendingCommentsFor, removePendingComment } from '../lib/pendingComments.js'
 import { deletedComments, isCommentDeleted, addDeletedComment } from '../lib/deletedComments.js'
 import { visibilityOf, visibilityOverrides, isSyncing, PRIVATE } from '../lib/entryVisibility.js'
-import { imageSrc } from '../lib/images.js'
+import { imageSrc, entryImages } from '../lib/images.js'
 import FavButton from '../components/FavButton.vue'
 import DeleteButton from '../components/DeleteButton.vue'
+import ShareButton from '../components/ShareButton.vue'
+import CloseButton from '../components/CloseButton.vue'
 
 const props = defineProps({
   entry: { type: Object, required: true },
 })
 const emit = defineEmits(['close', 'filter-by-tag'])
 
-// The hero and the lightbox both show the full-size original, not the list
-// thumbnail — this is where the picture is actually meant to be looked at.
-const imgSrc = computed(() => imageSrc(props.entry))
+// Multi-photo hero: an entry carries up to N originals (entry.images, first
+// == entry.image for old data). The carousel is a plain horizontal
+// scroll-snap container — native, robust, and (critically) compatible with
+// the app's global multi-touch lockdown: main.js only preventDefaults
+// multi-touch, single-finger pan keeps scroll-snap working.
+const photos = computed(() => entryImages(props.entry).map((_, i) => imageSrc(props.entry, i)))
+const activeIdx = ref(0)
+const heroScroll = ref(null)
+function onHeroScroll() {
+  const el = heroScroll.value
+  if (!el || !photos.value.length) return
+  const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
+  activeIdx.value = Math.max(0, Math.min(photos.value.length - 1, i))
+}
+// The lightbox opens on the carousel's current photo.
+const lightboxSrc = computed(() => photos.value[lightboxIdx.value] || '')
 
 const authorName = computed(() => getPoeticName(props.entry.deviceId || ''))
 const avatar = computed(() => getAvatar(props.entry.deviceId || ''))
@@ -82,16 +97,27 @@ function onKey(e) {
   if (e.key === 'Escape') {
     if (lightbox.value) closeLightbox()
     else emit('close')
+    return
   }
+  if (lightbox.value && e.key === 'ArrowLeft') stepLightbox(-1)
+  if (lightbox.value && e.key === 'ArrowRight') stepLightbox(1)
 }
 
-// Full-screen image zoom.
+// Full-screen image zoom (opens on the carousel's active photo).
 const lightbox = ref(false)
-function openLightbox() {
-  if (imgSrc.value) lightbox.value = true
+const lightboxIdx = ref(0)
+function openLightbox(idx = activeIdx.value) {
+  if (!photos.value.length) return
+  lightboxIdx.value = idx
+  lightbox.value = true
 }
 function closeLightbox() {
   lightbox.value = false
+}
+function stepLightbox(dir) {
+  const n = photos.value.length
+  if (!n) return
+  lightboxIdx.value = (lightboxIdx.value + dir + n) % n
 }
 
 // ---- Comments ----
@@ -140,6 +166,68 @@ function onCommentDeleted(id) {
 }
 function onCommentDeleteError(msg) {
   delErr.value = msg
+}
+
+// ---- "我也在这打卡过" ------------------------------------------------------
+// Shown only on OTHER people's entries (hidden on my own — that link would
+// always be true). Tap → open the upload sheet with this entry's location
+// and tags pre-filled. The pre-fill fills the form the same as a cold start;
+// the only difference is the point/city/tags inputs arrive non-empty.
+//
+// Association rule: we only LINK to this record's location + tags. We do NOT
+// create a normalized "related" join table (no server-side foreign key on a
+// git-backend) — the Mine tab already groups "my records at this place"
+// naturally by (deviceId, city) in its list, which is exactly what the user
+// described. If a future iteration needs a hard link, the visitedIds set in
+// localStorage is the natural place to store it.
+const canCheckinHere = computed(() => {
+  // Only on my own records the button is meaningless.
+  return Boolean(props.entry) && props.entry.deviceId !== getDeviceId()
+})
+
+function checkinHere() {
+  window.dispatchEvent(
+    new CustomEvent('gc-open-upload', {
+      detail: {
+        lng: props.entry.lng,
+        lat: props.entry.lat,
+        city: props.entry.city,
+        address: props.entry.address,
+        tags: props.entry.tags || [],
+      },
+    }),
+  )
+}
+
+const MOOD_MAP = {
+  happy: { emoji: '😊', label: '开心' },
+  calm: { emoji: '😌', label: '平静' },
+  excited: { emoji: '🤩', label: '兴奋' },
+  tired: { emoji: '😴', label: '疲惫' },
+  melancholy: { emoji: '😢', label: '感伤' },
+  angry: { emoji: '😤', label: '烦躁' },
+  grateful: { emoji: '🙏', label: '感恩' },
+}
+const WEATHER_MAP = {
+  sunny: { emoji: '☀️', label: '晴' },
+  cloudy: { emoji: '☁️', label: '多云' },
+  overcast: { emoji: '🌥️', label: '阴' },
+  rain: { emoji: '🌧️', label: '雨' },
+  storm: { emoji: '⛈️', label: '雷雨' },
+  snow: { emoji: '❄️', label: '雪' },
+  fog: { emoji: '🌫️', label: '雾' },
+}
+function moodEmoji(key) {
+  return MOOD_MAP[key]?.emoji || key
+}
+function moodLabel(key) {
+  return MOOD_MAP[key]?.label || key
+}
+function weatherEmoji(key) {
+  return WEATHER_MAP[key]?.emoji || key
+}
+function weatherLabel(key) {
+  return WEATHER_MAP[key]?.label || key
 }
 
 const myName = computed(() => getPoeticName(getDeviceId()))
@@ -205,6 +293,15 @@ async function submitComment() {
     recordComment()
     remaining.value = remainingCommentsToday(config.maxCommentsPerDay)
   } catch (e) {
+    if (e instanceof QueuedOfflineError) {
+      // Offline: the op is persisted in the outbox; the optimistic comment
+      // STAYS (badge 同步中 covers "waiting for network" too) and the quota is
+      // counted now — rebuilds from server will reconcile on sync.
+      recordComment()
+      remaining.value = remainingCommentsToday(config.maxCommentsPerDay)
+      busy.value = false
+      return
+    }
     // roll back optimistic comment on failure
     localComments.value = localComments.value.filter((c) => c.id !== comment.id)
     removePendingComment(comment.id)
@@ -218,20 +315,46 @@ async function submitComment() {
 </script>
 
 <template>
-  <div class="space-y-5" @keydown="onKey" tabindex="0">
-    <!-- back (sticky: stays at top while scrolling) -->
-    <div class="sticky top-0 z-20 -mx-4 px-4 py-2 -mt-2 app-gradient">
-      <button
-        @click="emit('close')"
-        class="flex items-center gap-1.5 text-sm text-mist-muted hover:text-mist-text transition"
-      >
-        <span class="text-lg">‹</span> 返回
-      </button>
-    </div>
+  <div class="space-y-5 pt-2" style="padding-top: max(env(safe-area-inset-top), 8px)" @keydown="onKey" tabindex="0">
+    <!-- back floating pill: accent gradient so it reads clearly over photos.
+         (Same pill as Feed/Mine overlays.) -->
+    <button
+      @click="emit('close')"
+      aria-label="返回"
+      class="fixed bottom-6 left-4 z-50 rounded-full pl-2.5 pr-4 py-2.5 shadow-lg shadow-accent/30 flex items-center gap-1.5 text-sm font-medium text-white transition active:scale-95 bg-gradient-to-r from-accent to-accent-2 ring-1 ring-white/40"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M15 18l-6-6 6-6"/></svg>
+      地图
+    </button>
 
-    <!-- hero image (tap to zoom) -->
-    <div v-if="imgSrc" class="rounded-3xl overflow-hidden cursor-zoom-in" @click="openLightbox">
-      <img :src="imgSrc" class="w-full h-56 sm:h-72 object-cover bg-mist-800/40" />
+    <!-- hero photo carousel (single photo for legacy entries) -->
+    <div v-if="photos.length" class="relative rounded-3xl overflow-hidden hero-settle">
+      <div
+        ref="heroScroll"
+        class="flex overflow-x-auto snap-x snap-mandatory thin-scroll rounded-3xl"
+        @scroll.passive="onHeroScroll"
+      >
+        <div
+          v-for="(src, i) in photos"
+          :key="src"
+          class="w-full shrink-0 snap-center cursor-zoom-in"
+          @click="openLightbox(i)"
+        >
+          <img :src="src" class="w-full h-56 sm:h-72 object-cover bg-mist-800/40" />
+        </div>
+      </div>
+      <!-- dot indicators (multi-photo only) -->
+      <div
+        v-if="photos.length > 1"
+        class="absolute bottom-2 inset-x-0 flex justify-center gap-1.5 pointer-events-none"
+      >
+        <span
+          v-for="(_, i) in photos"
+          :key="i"
+          class="w-1.5 h-1.5 rounded-full transition"
+          :class="i === activeIdx ? 'bg-white' : 'bg-white/40'"
+        ></span>
+      </div>
     </div>
 
     <!-- location -->
@@ -241,6 +364,18 @@ async function submitComment() {
         {{ lat.toFixed(5) }}, {{ lng.toFixed(5) }}
       </p>
     </header>
+
+    <!-- lightweight context (mood/weather), shown when present -->
+    <div v-if="entry.mood || entry.weather" class="flex items-center gap-2 text-sm">
+      <span v-if="entry.mood" class="inline-flex items-center gap-1.5 glass rounded-full px-3 py-1.5 text-mist-text">
+        <span>{{ moodEmoji(entry.mood) }}</span>
+        <span class="text-xs">{{ moodLabel(entry.mood) }}</span>
+      </span>
+      <span v-if="entry.weather" class="inline-flex items-center gap-1.5 glass rounded-full px-3 py-1.5 text-mist-text">
+        <span>{{ weatherEmoji(entry.weather) }}</span>
+        <span class="text-xs">{{ weatherLabel(entry.weather) }}</span>
+      </span>
+    </div>
 
     <!-- author + time -->
     <div class="glass rounded-2xl p-3 flex items-center gap-3">
@@ -269,6 +404,7 @@ async function submitComment() {
         class="rounded-full bg-accent/15 text-accent text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap"
       >🌐 公开</span>
       <FavButton :entry-id="entry.id" variant="detail" />
+      <ShareButton :entry="entry" />
     </div>
 
     <!-- full description -->
@@ -290,6 +426,18 @@ async function submitComment() {
           #{{ t }}
         </button>
       </div>
+    </section>
+
+    <!-- 我也在这打卡过 — other people's records only. Opens the upload sheet
+         with this entry's exact coordinates + tags pre-filled, so the new
+         record lands at the same spot. -->
+    <section v-if="canCheckinHere">
+      <button
+        @click="checkinHere"
+        class="w-full rounded-2xl glass px-4 py-3.5 flex items-center justify-center gap-2 text-sm text-accent font-medium hover:brightness-110 transition active:scale-[0.99]"
+      >
+        <span>📍</span> 我也在这打卡过
+      </button>
     </section>
 
     <!-- navigation -->
@@ -372,15 +520,33 @@ async function submitComment() {
       </div>
     </section>
 
-    <!-- full-screen image zoom -->
+    <!-- full-screen image zoom: arrows step through photos, backdrop closes.
+         Tap zones sit on the sides so taps on the image itself do nothing —
+         distinguishes "wants to look closer" from "wants to leave", and makes
+         room for a future pinch-zoom tap handler. -->
     <Teleport to="body">
       <div
         v-if="lightbox"
         class="fixed inset-0 z-[1300] bg-black/90 flex items-center justify-center fade-in"
-        @click="closeLightbox"
+        @click.self="closeLightbox"
       >
-        <img :src="imgSrc" class="max-w-full max-h-full object-contain" />
-        <span class="absolute top-4 right-4 text-white/70 text-2xl">✕</span>
+        <img :src="lightboxSrc" class="max-w-full max-h-full object-contain" />
+        <CloseButton aria-label="关闭" variant="dark" class="absolute top-4 right-4" @close="closeLightbox" />
+        <template v-if="photos.length > 1">
+          <button
+            class="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 text-white/90 text-2xl flex items-center justify-center ring-1 ring-white/20 backdrop-blur-sm transition active:scale-90"
+            aria-label="上一张"
+            @click="stepLightbox(-1)"
+          >‹</button>
+          <button
+            class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 text-white/90 text-2xl flex items-center justify-center ring-1 ring-white/20 backdrop-blur-sm transition active:scale-90"
+            aria-label="下一张"
+            @click="stepLightbox(1)"
+          >›</button>
+          <span class="absolute bottom-4 inset-x-0 text-center text-white/60 text-xs">
+            {{ lightboxIdx + 1 }} / {{ photos.length }}
+          </span>
+        </template>
       </div>
     </Teleport>
   </div>

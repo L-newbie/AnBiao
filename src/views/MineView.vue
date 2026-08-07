@@ -1,14 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Avatar from '../components/Avatar.vue'
 import DeleteButton from '../components/DeleteButton.vue'
 import VisibilityToggle from '../components/VisibilityToggle.vue'
 import StarIcon from '../components/StarIcon.vue'
 import { config } from '../lib/config.js'
-import { getDeviceId, getPoeticName, maskedDeviceCode, uploadsToday, remainingToday } from '../lib/device.js'
+import { getDeviceId, getPoeticName, getShortCode, uploadsToday, remainingToday } from '../lib/device.js'
 import { favoriteEntries } from '../lib/favorites.js'
 import { visibilityOf, visibilityOverrides, isSyncing, PUBLIC } from '../lib/entryVisibility.js'
 import { imageSrc, listSrc } from '../lib/images.js'
+import { listOps, retryOp, discardOp, outboxCount } from '../lib/outbox.js'
+import { drainOutbox } from '../lib/sync.js'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
@@ -38,7 +40,7 @@ function onCommentDeleted(id) {
 
 const id = getDeviceId()
 const poeticName = getPoeticName(id)
-const code = maskedDeviceCode(id)
+const shortCode = getShortCode(id)
 
 // The Mine tab receives the unfiltered author-side list, so this is where my
 // own private entries show up (they're excluded from the public feed upstream).
@@ -142,6 +144,52 @@ function openComment(comment) {
   // pending comment on an entry we can't see has nowhere to go.
   if (entry) emit('open', entry)
 }
+
+// ---- 同步队列 (offline outbox) ----
+// Live view of IndexedDB outbox ops, refreshed on every gc-outbox-changed.
+// SyncChip focuses this section (scroll) via the exposed anchor id.
+const ops = ref([])
+const queueEl = ref(null)
+async function reloadOps() {
+  ops.value = await listOps()
+}
+onMounted(() => {
+  reloadOps()
+  window.addEventListener('gc-outbox-changed', reloadOps)
+})
+onBeforeUnmount(() => window.removeEventListener('gc-outbox-changed', reloadOps))
+
+const KIND_LABEL = {
+  entry: '发布记录',
+  comment: '留言',
+  deleteEntry: '删除记录',
+  deleteComment: '删除留言',
+  visibility: '修改可见性',
+}
+function opLabel(op) {
+  return KIND_LABEL[op.kind] || op.kind
+}
+function opSummary(op) {
+  const p = op.payload || {}
+  if (op.kind === 'entry') return (p.description || '').slice(0, 24) || p.id
+  if (op.kind === 'comment') return (p.comment?.text || '').slice(0, 24) || p.entryId
+  return p.entryId || ''
+}
+function opTime(op) {
+  return commentTime({ createdAt: op.createdAt })
+}
+async function onRetryOp(op) {
+  await retryOp(op.key)
+  await drainOutbox()
+}
+async function onDiscardOp(op) {
+  await discardOp(op.key)
+  // Also drop the optimistic residue so a discarded entry doesn't linger in
+  // the feed. App listens for this and reconciles pending/state.
+  window.dispatchEvent(new CustomEvent('gc-outbox-discarded', { detail: { kind: op.kind, payload: op.payload } }))
+}
+// SyncChip scrolls here when tapped.
+defineExpose({ queueEl })
 </script>
 
 <template>
@@ -150,7 +198,7 @@ function openComment(comment) {
     <section class="glass rounded-3xl p-6 flex flex-col items-center text-center gap-3">
       <Avatar :device-id="id" :size="84" />
       <h2 class="font-serif text-2xl text-mist-text">{{ poeticName }}</h2>
-      <p class="font-mono text-xs text-mist-muted/70 tracking-widest">{{ code }}</p>
+      <p class="font-mono text-xs text-mist-muted/70">#{{ shortCode }}</p>
     </section>
 
     <!-- stats -->
@@ -169,9 +217,36 @@ function openComment(comment) {
       </div>
     </section>
 
+    <!-- 同步队列 — only visible while the outbox has queued/failed ops -->
+    <section v-if="outboxCount > 0" ref="queueEl" class="glass rounded-2xl p-3 space-y-2">
+      <header class="flex items-center justify-between">
+        <h3 class="font-serif text-sm text-mist-text">同步队列</h3>
+        <span class="text-[11px] text-mist-muted/70">断网时的操作会在这里排队，联网后自动同步</span>
+      </header>
+      <div v-for="op in ops" :key="op.key" class="glass rounded-xl px-3 py-2 flex items-center gap-2">
+        <span
+          class="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+          :class="op.status === 'failed' ? 'bg-rose-400' : op.status === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-accent'"
+        ></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs text-mist-text truncate">{{ opLabel(op) }}<span v-if="opSummary(op)" class="text-mist-muted/70"> · {{ opSummary(op) }}</span></p>
+          <p class="text-[10px] text-mist-muted/60">
+            {{ opTime(op) }}
+            <span v-if="op.status === 'failed'" class="text-rose-glow"> · {{ op.lastErr || '同步失败' }}</span>
+            <span v-else-if="op.status === 'syncing'" class="text-amber-300/80"> · 同步中…</span>
+          </p>
+        </div>
+        <template v-if="op.status === 'failed'">
+          <button class="text-[11px] text-accent shrink-0" @click="onRetryOp(op)">重试</button>
+          <button class="text-[11px] text-mist-muted/70 shrink-0" @click="onDiscardOp(op)">放弃</button>
+        </template>
+      </div>
+    </section>
+
     <!-- section switcher: 记录 / 留言 / 收藏 -->
     <section class="glass rounded-2xl p-1 grid grid-cols-3 gap-1">
       <button
+
         v-for="s in sections"
         :key="s.key"
         @click="section = s.key"

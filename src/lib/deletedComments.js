@@ -15,26 +15,19 @@
 // neither would update until the next fetch.
 
 import { ref } from 'vue'
+import { readJson, writeJson } from './storage.js'
 
 const KEY = 'gc_deleted_comments'
 
 function load() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
-    return Array.isArray(arr) ? arr.filter((id) => typeof id === 'string') : []
-  } catch {
-    return []
-  }
+  const arr = readJson(KEY, [])
+  return Array.isArray(arr) ? arr.filter((id) => typeof id === 'string') : []
 }
 
 export const deletedComments = ref(load())
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(deletedComments.value))
-  } catch {
-    /* storage full / blocked — best effort */
-  }
+  writeJson(KEY, deletedComments.value)
 }
 
 export function isCommentDeleted(id) {

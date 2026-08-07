@@ -11,16 +11,13 @@
 // (network blip, mid-deploy aggregate) must not silently drop the bookmark.
 
 import { ref } from 'vue'
+import { readJson, writeJson } from './storage.js'
 
 const KEY = 'gc_favorites'
 
 function load() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
-    return Array.isArray(arr) ? arr.filter((f) => f && f.id) : []
-  } catch {
-    return []
-  }
+  const arr = readJson(KEY, [])
+  return Array.isArray(arr) ? arr.filter((f) => f && f.id) : []
 }
 
 // Module-level reactive store: every importer shares one instance, so toggling
@@ -29,11 +26,9 @@ function load() {
 export const favorites = ref(load())
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(favorites.value))
-  } catch {
-    /* storage full / blocked — best effort, favorites are non-critical */
-  }
+  // Non-critical (favorites are reconstructible), but a failed write now
+  // still surfaces via the gc-storage-full toast instead of vanishing.
+  writeJson(KEY, favorites.value)
 }
 
 export function isFavorite(id) {

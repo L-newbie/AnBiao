@@ -1,11 +1,14 @@
 <script setup>
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { hasAMap, loadAMap, reverseGeocode, forwardGeocode, FALLBACK_CITIES } from '../lib/amap.js'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock.js'
+import CloseButton from './CloseButton.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
   initial: { type: Object, default: null }, // { lng, lat, city, address } | null
 })
+useBodyScrollLock(() => props.open)
 const emit = defineEmits(['update:open', 'confirm', 'close'])
 
 const useAMap = hasAMap()
@@ -225,12 +228,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between">
           <h2 class="font-serif text-xl text-mist-text">选择位置</h2>
-          <button
-            @click="close"
-            class="rounded-full w-8 h-8 flex items-center justify-center glass text-mist-muted hover:text-mist-text"
-          >
-            ✕
-          </button>
+          <CloseButton @close="close" />
         </div>
 
         <!-- AMap happy path -->
@@ -240,7 +238,6 @@ onBeforeUnmount(() => {
             <input
               v-model="searchText"
               @keydown.enter="search"
-              placeholder="输入地址搜索，如：上海外滩"
               class="flex-1 rounded-2xl glass px-3 py-2.5 text-sm text-mist-text placeholder-mist-muted/50 outline-none focus:border-rose-glow/50"
             />
             <button

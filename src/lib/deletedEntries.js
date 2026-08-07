@@ -13,26 +13,19 @@
 // store has to be reactive or the feed wouldn't update until the next fetch.
 
 import { ref } from 'vue'
+import { readJson, writeJson } from './storage.js'
 
 const KEY = 'gc_deleted'
 
 function load() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
-    return Array.isArray(arr) ? arr.filter((id) => typeof id === 'string') : []
-  } catch {
-    return []
-  }
+  const arr = readJson(KEY, [])
+  return Array.isArray(arr) ? arr.filter((id) => typeof id === 'string') : []
 }
 
 export const deleted = ref(load())
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(deleted.value))
-  } catch {
-    /* storage full / blocked — best effort */
-  }
+  writeJson(KEY, deleted.value)
 }
 
 export function isDeleted(id) {

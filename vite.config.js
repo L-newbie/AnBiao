@@ -43,7 +43,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webp}'],
         // data.json is the live feed — never precache it. github.js already
         // fetches it with cache:'no-store'; this is defensive belt-and-suspenders.
-        globIgnores: ['**/data.json'],
+        // entries/<id>.html OG card pages are per-entry build artifacts served
+        // by Pages for link unfurlers; precaching hundreds of them would bloat
+        // the SW install and they're only ever fetched online anyway.
+        globIgnores: ['**/data.json', '**/data-index.json', '**/points.json', '**/data/**', '**/entries/**'],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

@@ -25,6 +25,7 @@ function onClick() {
   <button
     @click.stop="onClick"
     :aria-pressed="on"
+    :aria-label="on ? '取消收藏' : '收藏'"
     :title="on ? '取消收藏' : '收藏'"
     :class="[
       'shrink-0 flex items-center justify-center transition active:scale-90',

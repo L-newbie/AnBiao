@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { setEntryVisibility } from '../lib/github.js'
+import { setEntryVisibility, QueuedOfflineError } from '../lib/github.js'
 import {
   PRIVATE,
   PUBLIC,
@@ -46,6 +46,16 @@ async function onConfirm() {
     emit('toggled', props.entry.id, next)
     confirmOpen.value = false
   } catch (e) {
+    if (e instanceof QueuedOfflineError) {
+      // Queued: the local override already makes it LOOK toggled everywhere;
+      // the branch write lands on sync. Same "only show what the branch will
+      // end up with" rule holds — the override mirrors the queued payload.
+      setVisibilityOverride(props.entry.id, next)
+      emit('toggled', props.entry.id, next)
+      confirmOpen.value = false
+      busy.value = false
+      return
+    }
     confirmOpen.value = false
     emit('error', e.message)
   } finally {
@@ -59,6 +69,7 @@ async function onConfirm() {
   <button
     @click.stop="confirmOpen = true"
     :aria-label="targetLabel"
+    :aria-pressed="isPublic"
     :title="isPublic ? '当前公开 · 点击设为私密' : '当前私密 · 点击设为公开'"
     class="shrink-0 w-8 h-8 flex items-center justify-center transition active:scale-90 rounded-full ring-1"
     :class="isPublic

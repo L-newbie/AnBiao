@@ -136,6 +136,20 @@ button:disabled {
   animation: fab-pulse 2.4s ease-in-out infinite;
 }
 
+/* Variant: violet glow for the operations hub FAB (matches its gradient). */
+@keyframes fab-pulse-violet {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.5), 0 10px 32px rgba(30, 58, 82, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 18px rgba(124, 58, 237, 0), 0 10px 36px rgba(30, 58, 82, 0.24);
+  }
+}
+.fab-pulse-violet {
+  animation: fab-pulse-violet 2.4s ease-in-out infinite;
+}
+
 /* Vibrant gradient title shimmer: slides the multi-stop gradient across the
    clipped text. background-size 200% + animated background-position. */
 @keyframes title-shimmer {
@@ -152,6 +166,119 @@ button:disabled {
 }
 @media (prefers-reduced-motion: reduce) {
   .title-vibrant {
+    animation: none;
+  }
+}
+
+/* Loading skeleton: a sweeping band of light over mist. Reduced-motion cuts
+   the animation but keeps the shape visible. */
+.skeleton-shimmer {
+  background: linear-gradient(100deg, rgba(214, 232, 244, 0.45) 30%, rgba(255, 255, 255, 0.85) 48%, rgba(214, 232, 244, 0.45) 62%);
+  background-size: 220% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -30% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+  }
+}
+
+/* ---- View transitions ----
+   Tab switches slide with direction (community < map < mine); the detail
+   overlay keeps a plain fade. `mode="out-in"` in App.vue means each of these
+   only ever animates one entering or one leaving node at a time. */
+.view-fade-enter-active,
+.view-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.view-fade-enter-from,
+.view-fade-leave-to {
+  opacity: 0;
+}
+
+.view-slide-left-enter-active,
+.view-slide-left-leave-active,
+.view-slide-right-enter-active,
+.view-slide-right-leave-active {
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+.view-slide-left-enter-from {
+  transform: translateX(14px);
+  opacity: 0;
+}
+.view-slide-left-leave-to {
+  transform: translateX(-14px);
+  opacity: 0;
+}
+.view-slide-right-enter-from {
+  transform: translateX(-14px);
+  opacity: 0;
+}
+.view-slide-right-leave-to {
+  transform: translateX(14px);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-slide-left-enter-active,
+  .view-slide-left-leave-active,
+  .view-slide-right-enter-active,
+  .view-slide-right-leave-active {
+    transition: opacity 0.15s ease;
+  }
+  .view-slide-left-enter-from,
+  .view-slide-left-leave-to,
+  .view-slide-right-enter-from,
+  .view-slide-right-leave-to {
+    transform: none;
+  }
+}
+
+/* Detail hero: a quick settle-in scale as the overlay opens. Not a real
+   shared-element transition (the feed card is mid-DOM), but reads as one —
+   cheap and robust everywhere. */
+@keyframes hero-settle {
+  from {
+    transform: scale(0.965);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hero-settle {
+  animation: hero-settle 0.22s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-settle {
+    animation: none;
+  }
+}
+
+/* Card-enter rise on the feed grid: cards rise 8px + fade in on mount. */
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.card-rise {
+  animation: card-rise 0.25s ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-rise {
     animation: none;
   }
 }
