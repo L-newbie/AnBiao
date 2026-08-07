@@ -341,6 +341,8 @@ async function initMap() {
   }
   syncMap()
   syncVisitedPins()
+  // Debug: surface the state at boot to help diagnose "map blank" reports.
+  console.debug('[proxima] map ready, visible entries =', visible.value.length, 'markers =', markersById.size)
 
   // Startup centering:
   //  1. default = user's current location (silently, if permission was
