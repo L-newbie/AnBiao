@@ -1,0 +1,23 @@
+{
+  "id": "5c0f8ac6-caa8-4dd1-9491-c86af14743b7",
+  "deviceId": "fp-f4cdbd1e",
+  "createdAt": "2026-08-07T14:34:57.504Z",
+  "lat": 40.225142,
+  "lng": 116.283538,
+  "city": "北京市",
+  "address": "北京市昌平区南邵镇迎客家园",
+  "description": "测试",
+  "tags": [
+    "足疗"
+  ],
+  "image": "images/5c0f8ac6-caa8-4dd1-9491-c86af14743b7-0.jpg",
+  "images": [
+    "images/5c0f8ac6-caa8-4dd1-9491-c86af14743b7-0.jpg",
+    "images/5c0f8ac6-caa8-4dd1-9491-c86af14743b7-1.jpg",
+    "images/5c0f8ac6-caa8-4dd1-9491-c86af14743b7-2.jpg"
+  ],
+  "status": "published",
+  "visibility": "private",
+  "mood": "happy",
+  "weather": "sunny"
+}
