@@ -330,9 +330,15 @@ async function initMap() {
     loading.value = false
     return
   }
-  map = new AMap.Map(mapEl.value, { zoom: zoom.value, center: [105, 35], resizeEnable: true })
-  map.on('zoomend', onZoomEnd)
-  map.on('moveend', onMoveEnd)
+  try {
+    map = new AMap.Map(mapEl.value, { zoom: zoom.value, center: [105, 35], resizeEnable: true })
+    map.on('zoomend', onZoomEnd)
+    map.on('moveend', onMoveEnd)
+  } catch (e) {
+    mapErr.value = `地图初始化失败${e && e.message ? ': ' + e.message : ''}`
+    loading.value = false
+    return
+  }
   syncMap()
   syncVisitedPins()
 
