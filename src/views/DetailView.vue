@@ -326,7 +326,7 @@ async function submitComment() {
       class="fixed bottom-6 left-4 z-50 rounded-full pl-2.5 pr-4 py-2.5 shadow-lg shadow-accent/30 flex items-center gap-1.5 text-sm font-medium text-white transition active:scale-95 bg-gradient-to-r from-accent to-accent-2 ring-1 ring-white/40"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M15 18l-6-6 6-6"/></svg>
-      地图
+      返回
     </button>
 
     <!-- hero photo carousel (single photo for legacy entries) -->
