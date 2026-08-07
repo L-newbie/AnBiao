@@ -15,6 +15,7 @@
 // has to be reactive or the feed wouldn't update until the next fetch.
 
 import { ref } from 'vue'
+import { readJson, writeJson } from './storage.js'
 
 const KEY = 'gc_visibility'
 
@@ -26,25 +27,17 @@ function isValid(v) {
 }
 
 function load() {
-  try {
-    const obj = JSON.parse(localStorage.getItem(KEY) || '{}')
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {}
-    // Drop anything that isn't a known value — a corrupt entry here would
-    // otherwise resolve to a visibility nothing in the app understands.
-    return Object.fromEntries(Object.entries(obj).filter(([, v]) => isValid(v)))
-  } catch {
-    return {}
-  }
+  const obj = readJson(KEY, {})
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {}
+  // Drop anything that isn't a known value — a corrupt entry here would
+  // otherwise resolve to a visibility nothing in the app understands.
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => isValid(v)))
 }
 
 export const visibilityOverrides = ref(load())
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(visibilityOverrides.value))
-  } catch {
-    /* storage full / blocked — best effort */
-  }
+  writeJson(KEY, visibilityOverrides.value)
 }
 
 // The one place that decides how visible an entry is: a pending local override

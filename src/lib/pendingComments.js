@@ -15,23 +15,17 @@
 // Flat array of { entryId, ...comment } — mirrors pending.js's shape and keeps
 // prune simple (one pass over live entries' comment ids).
 
+import { readJson, writeJson } from './storage.js'
+
 const KEY = 'gc_pending_comments'
 
 export function loadPendingComments() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
-  }
+  const arr = readJson(KEY, [])
+  return Array.isArray(arr) ? arr : []
 }
 
 export function savePendingComments(list) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(Array.isArray(list) ? list : []))
-  } catch {
-    /* storage full / blocked — best effort, pending is non-critical */
-  }
+  writeJson(KEY, Array.isArray(list) ? list : [])
 }
 
 // Append one pending comment, deduping by comment id.

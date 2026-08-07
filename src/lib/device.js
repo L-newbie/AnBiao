@@ -7,8 +7,34 @@
 const DEVICE_KEY = 'gc_device_id'
 const COUNT_KEY = (d) => `gc_uploads_${d}`
 
+// LOCAL calendar day as YYYY-MM-DD. (Was new Date().toISOString().slice(0,10),
+// which is UTC: users east of UTC saw "today" roll over at the wrong hour and
+// west-of-UTC users could double-dip quotas around midnight. Local is the only
+// sensible interpretation of "today" for a per-person daily quota.)
 function today() {
-  return new Date().toISOString().slice(0, 10) // YYYY-MM-DD (local-ish; good enough)
+  const d = new Date()
+  return (
+    d.getFullYear() +
+    '-' +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(d.getDate()).padStart(2, '0')
+  )
+}
+
+// createdAt values are ISO UTC (server-written). Convert to the viewer's local
+// calendar day before comparing against today(), or quota rebuilds disagree
+// with the counters near midnight.
+function localDay(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return (
+    d.getFullYear() +
+    '-' +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(d.getDate()).padStart(2, '0')
+  )
 }
 
 // FNV-1a hash for fingerprinting. Stable across runs for the same input.
@@ -79,9 +105,42 @@ export function getDeviceId() {
   return id
 }
 
-// Poetic virtual name derived deterministically from the device id, e.g. "暮色拾光".
-const POETIC_A = ['暮色', '晨雾', '晚星', '薄雾', '孤月', '残阳', '疏影', '微光']
-const POETIC_B = ['拾光', '听雨', '观云', '寻风', '望月', '踏雪', '问茶', '记夕']
+// Nickname system — "半糖叛逆系" long names. Deterministically derived from
+// the device id, so the same browser always gets the same name even after a
+// cache clear (the canvas fingerprint survives — see fingerprint() above).
+//
+// Each full name has TWO parts combined here:
+//   1. a two-slot phrase from the vocab below (40 × 40 = 1600 combos)
+//   2. a short id suffix derived from the device id's own hex, so display can
+//      disambiguate collisions on demand (see displayName below)
+//
+// The longer phrase format is deliberate: 4–6 Chinese characters reads like a
+// username a human would actually pick, unlike the old 暮色拾光/孤月问茶
+// two-character names that read like a placeholder. They're playful but
+// inoffensive, and (importantly for a map community) they don't encode any
+// real identity signal — no places, no genders, no ages.
+
+const NAME_A = [
+  '偷吃宵夜的', '减肥失败的', '守夜冠军', '逃课多次的', '被猫奴役的',
+  '赶不上末班车的', '带薪上厕所的', '喝假酒上头的', '靠奶茶续命的', '熬夜改稿的',
+  '半路迷路的', '自言自语的', '买三杯奶茶的', '躺平又怕输的', '攒塑料袋的',
+  '下雨天不带伞的', '总想早退的', '地铁挤成纸片的', '给树拍照的', '电梯里唱歌的',
+  '凌晨改方案的', '囤葱囤蒜的', '网购成瘾的', '周末不出门的', '脚踩西瓜皮的',
+  '热衷摆烂的', '爱管闲事的', '三分钟热度的', '靠外卖过活的', '爱凑热闹的',
+  '半夜刷菜谱的', '囤剧不看的', '早起失败的', '长期失联的', '爱吹牛的',
+  '记性差的', '踩点到位的', '爱捡瓶子的', '睡过头的', '偷看热闹的',
+]
+
+const NAME_B = [
+  '自律教练', '情绪摆烂师', '泡面研究员', '带薪如厕员', '末班哲学家',
+  '奶茶质检员', '搬砖探险家', '晚霞收藏家', '影子调音师', '摸鱼运动员',
+  '辣条销冠', '咖啡续命师', '合租界的诗人', '晚风临时工', '摸鱼界元老',
+  '冰箱挖掘者', '棉被山大王', '废话制造机', '散装诗人', '半夜冥想家',
+  '阳台园艺师', '负能量回收站', '快乐债主', '碳水狂热粉', '电梯音乐总监',
+  '理 发店考察员', '下雨天测报员', '熬夜发声明者', '过期零食猎手', '广场舞预备生',
+  '情绪煎饼侠', '乌龙观察员', '日落质检员', '朋友圈潜水员', '打工魂本魂',
+  '流浪猫首席助理', '迟到界的劳模', '薅羊毛运动员', '半糖去冰师', '楼道流浪歌手',
+]
 
 function hashStr(s) {
   let h = 0
@@ -91,8 +150,34 @@ function hashStr(s) {
 
 export function getPoeticName(deviceId = getDeviceId()) {
   const h = hashStr(deviceId)
-  return POETIC_A[h % POETIC_A.length] + POETIC_B[(h >>> 8) % POETIC_B.length]
+  return NAME_A[h % NAME_A.length] + NAME_B[(h >>> 8) % NAME_B.length]
 }
+
+// Short hex suffix for disambiguation: shown in full-name contexts (comment
+// threads, the Mine identity card) where two devices could collide on the
+// same phrase. List views (comment rows, card bylines) use displayName()
+// which adds it ALWAYS in reduced form so a new user instantly sees it's part
+// of the name, not a separate badge. Uses the id's last 3 hex chars (not the
+// masked first 8) because the hash already scatters first chars evenly.
+export function getShortCode(deviceId = getDeviceId()) {
+  return deviceId.replace(/-/g, '').slice(-3) || '000'
+}
+
+export function getFullName(deviceId = getDeviceId()) {
+  return getPoeticName(deviceId) + '#' + getShortCode(deviceId)
+}
+
+// Default display: the phrase plus a smaller short code. Readable as a single
+// handle ("偷看热闹的摸鱼运动员#a3f") and safely disambiguates the ~1600
+// collision space.
+export function displayName(deviceId = getDeviceId()) {
+  return getFullName(deviceId)
+}
+
+// Legacy name used by getAvatar's glyph (kept stable so existing identity
+// colors don't shift on devices that already have data). Old 暮色拾光-style
+// names are NOT shown anywhere by default — getPoeticName is the only source
+// for text. The glyph is the last char of the phrase, which is more playful.
 
 // Deterministic avatar: a cyan→sea-blue gradient + a serif glyph (last char
 // of the poetic name). Pure CSS/SVG, no external deps.
@@ -105,11 +190,6 @@ export function getAvatar(deviceId = getDeviceId()) {
     gradient: `linear-gradient(135deg, hsl(${h1} 65% 42%), hsl(${h2} 70% 50%))`,
     glyph: getPoeticName(deviceId).slice(-1),
   }
-}
-
-// Device code masked to the first 8 hex chars (dashes stripped) + ellipsis.
-export function maskedDeviceCode(deviceId = getDeviceId()) {
-  return deviceId.replace(/-/g, '').slice(0, 8) + '…'
 }
 
 export function uploadsToday() {
@@ -153,12 +233,12 @@ export function recordComment() {
 // optimistic (not-yet-aggregated) actions are never lost and server-side
 // truth wins when higher.
 //
-// `createdAt` is ISO (UTC); we compare against the UTC date slice, matching
-// the `today()` helper used by the localStorage counters.
+// `createdAt` is ISO (UTC); rebuilt counts convert to the LOCAL calendar day
+// via localDay() to match the local-day counters written by recordUpload().
 
 function isToday(iso) {
   if (!iso) return false
-  return String(iso).slice(0, 10) === today()
+  return localDay(iso) === today()
 }
 
 // Rebuild today's upload count for this device from aggregated entries.

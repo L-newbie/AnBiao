@@ -3,10 +3,11 @@
 // async work and drives `busy`, so the dialog stays usable for anything that
 // needs a confirmation (deleting an entry or a comment, flipping visibility).
 //
-// z-[1400] sits above every other layer — UploadModal 1100, MapModal 1200,
+// z-[1400] sits above every other layer — UploadSheet 1100, MapModal 1200,
 // DetailView's lightbox 1300 — because a confirm can be raised from inside the
 // detail view while any of those are on screen.
 import { onBeforeUnmount, watch } from 'vue'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -24,6 +25,7 @@ const props = defineProps({
   // label is replaced, so a double-tap can't fire the action twice.
   busy: { type: Boolean, default: false },
 })
+useBodyScrollLock(() => props.open)
 const emit = defineEmits(['update:open', 'confirm'])
 
 // Escape / backdrop / cancel all funnel through here so the busy guard is in

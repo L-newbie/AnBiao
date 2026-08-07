@@ -2,11 +2,23 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './style.css'
 import { setupPwa } from './lib/usePwaUpdate.js'
+import { resetStaleSyncing } from './lib/outbox.js'
+import { drainOutbox } from './lib/sync.js'
 
 createApp(App).mount('#app')
 
 // Register the PWA service worker + iOS-safe foreground update re-check.
 setupPwa()
+
+// Offline write queue: recover anything a dead tab left half-synced, then
+// drain on network return / tab re-focus / a slow heartbeat. drainOutbox is
+// re-entrancy-safe; these are just its wake-up calls.
+resetStaleSyncing().finally(() => drainOutbox())
+window.addEventListener('online', () => drainOutbox())
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) drainOutbox()
+})
+setInterval(() => drainOutbox(), 60 * 1000)
 
 // ---- Mobile zoom lockdown ----
 // viewport `user-scalable=no` + touch-action: manipulation cover most cases,

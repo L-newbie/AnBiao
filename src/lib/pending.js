@@ -9,23 +9,17 @@
 //
 // Stored as a plain JSON array under gc_pending.
 
+import { readJson, writeJson } from './storage.js'
+
 const KEY = 'gc_pending'
 
 export function loadPending() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
-  }
+  const arr = readJson(KEY, [])
+  return Array.isArray(arr) ? arr : []
 }
 
 export function savePending(entries) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(Array.isArray(entries) ? entries : []))
-  } catch {
-    /* storage full / blocked — best effort, pending is non-critical */
-  }
+  writeJson(KEY, Array.isArray(entries) ? entries : [])
 }
 
 // Append one pending entry, deduping by id.

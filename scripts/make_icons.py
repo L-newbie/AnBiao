@@ -1,34 +1,41 @@
 #!/usr/bin/env python3
 """Generate the 比邻云 proxima PWA icons.
 
-We have no CJK font and no SVG rasterizer (no convert/rsvg/inkscape/sharp) on
-this machine, so we draw a geometric location-pin mark instead of the glyph
-比 — which fits the app's lat/lng/map identity anyway.
+Redesign (2026): replaces the plain cylindrical pin with a STAR-MARK —
+a four-pointed star (proxima = nearest star) nested in a thin orbital ring,
+on a cyan→sea-blue diagonal field. Reads as "a star + a location" at all
+sizes, matching the new map-first identity.
 
 Output (into ../public, i.e. <repo>/public):
-  pwa-192x192.png, pwa-512x512.png  — square, full-bleed gradient + centered pin
-  apple-touch-icon.png              — 180x180, opaque (iOS applies its own mask)
+  pwa-192x192.png, pwa-512x512.png  — square, full-bleed gradient + star-mark
+  apple-touch-icon.png              — 180x180, opaque
   favicon.ico                       — multi-size ico
 
 Design:
-  - Full-bleed diagonal gradient  cyan #0ea5b7 → sea blue #2563eb (fills the
-    whole square, so the maskable safe zone is fully covered).
-  - Centered white pin (head circle + pointed tail) within the central ~80%.
-  - A small accent dot in the pin head — a recognizable, brand-tinted mark.
+  - Full-bleed diagonal gradient  cyan #0ea5b7 → sea blue #2563eb.
+  - Star-mark centered within ~80% safe area (maskable-friendly).
+  - Mark is a white four-pointed star with a thin white ring around it, the
+    two shapes sharing a soft drop-shadow so the mark reads consistently from
+    16px favicon all the way to 512px store listing.
+  - An optional tiny comet-tail curve from bottom-left adds movement and
+    doubles as the location pin's directional cue.
 
 Run once to (re)generate. The PNGs are committed alongside this script.
   python3 scripts/make_icons.py
 """
 from __future__ import annotations
+
+import math
 import os
-from PIL import Image, ImageDraw
+
+from PIL import Image, ImageDraw, ImageFilter
 
 OUT = os.path.join(os.path.dirname(__file__), '..', 'public')
 
-CYAN = (14, 165, 183)      # #0ea5b7 — app accent
-BLUE = (37, 99, 235)       # #2563eb — app accent-2
+CYAN = (14, 165, 183)       # #0ea5b7 — app accent
+BLUE = (37, 99, 235)        # #2563eb — app accent-2
 WHITE = (255, 255, 255)
-ACCENT_DOT = (14, 165, 183)
+SHADOW = (8, 40, 80)        # deep blue-grey shadow tint
 
 
 def lerp(a, b, t):
@@ -36,58 +43,95 @@ def lerp(a, b, t):
 
 
 def gradient_bg(size: int) -> Image.Image:
-    """Full-bleed diagonal gradient CYAN→BLUE covering the whole square."""
+    """Full-bleed diagonal gradient CYAN→BLUE, slightly biased so the top
+    starts brighter (reads as daylight glow, matches the app's 晴空白蓝)."""
     img = Image.new('RGB', (size, size), CYAN)
     px = img.load()
     for y in range(size):
         for x in range(size):
-            # Diagonal t across the square (0..1), biased from top-left CYAN
-            # to bottom-right BLUE.
-            t = (x + y) / (2 * (size - 1)) if size > 1 else 0
-            px[x, y] = lerp(CYAN, BLUE, t)
+            # Diagonal progress 0..1 biased toward CYAN at top-left.
+            t = ((x * 1.1) + y) / (2.1 * (size - 1)) if size > 1 else 0
+            px[x, y] = lerp(CYAN, BLUE, min(1.0, t))
     return img
 
 
-def draw_pin(img: Image.Image):
-    """Draw a centered white location pin with an accent dot in its head."""
+def star_points(cx: float, cy: float, R: float, r: float, n: int = 4, phase: float = -math.pi / 2):
+    """n-pointed star with outer radius R and inner radius r. phase -pi/2 puts
+    a point straight up."""
+    pts = []
+    for i in range(2 * n):
+        rr = R if i % 2 == 0 else r
+        ang = phase + i * math.pi / n
+        pts.append((cx + rr * math.cos(ang), cy + rr * math.sin(ang)))
+    return pts
+
+
+def draw_mark(img: Image.Image):
+    """Draw the star + orbital ring + comet arc at the center of img."""
     size = img.width
     cx = size / 2
-    d = ImageDraw.Draw(img, 'RGBA')
+    cy = size / 2
+    # Mark bounding box is 62% of the canvas (comfortably within the maskable
+    # 80% safe zone).
+    R = size * 0.335  # outer star radius
+    r = R * 0.42      # inner star radius (controls pointiness)
 
-    # Pin head: a circle centered slightly above middle.
-    head_r = size * 0.20
-    head_cy = size * 0.42
+    # Work on a supersampled transparent layer for crisp antialiasing, then
+    # downscale back. 4x is the sweet spot for simple flat shapes.
+    SS = 4
+    W = size * SS
+    layer = Image.new('RGBA', (W, W), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+
+    cxS = W / 2
+    cyS = W / 2
+    RS = R * SS
+    rS = r * SS * 0.55  # sharper star points for a more recognizable silhouette
+    ring_width = max(2, int(W * 0.030))
+    shadow_blur = max(2, int(W * 0.030))
+    shadow_offset_y = max(2, int(W * 0.016))
+
+    # --- shadow pass: render the star+ring slightly darker, offset + blur ---
+    shadow = Image.new('RGBA', (W, W), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
+    star = star_points(cxS, cyS + shadow_offset_y, RS, rS)
+    sd.polygon(star, fill=SHADOW + (200,))
+    # Shadow ring
+    ring_bb = [cxS - RS * 1.14, cyS + shadow_offset_y - RS * 1.14, cxS + RS * 1.14, cyS + shadow_offset_y + RS * 1.14]
+    sd.ellipse(ring_bb, outline=SHADOW + (170,), width=ring_width)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(shadow_blur))
+    layer.alpha_composite(shadow)
+
+    # --- comet arc: subtle luminous swoosh trailing bottom-left ---
+    arc_bb = [cxS - RS * 1.9, cyS + RS * 0.5, cxS - RS * 0.1, cyS + RS * 1.6]
+    arc_w = max(2, int(W * 0.030))
+    d.arc(arc_bb, start=115, end=230, fill=WHITE + (180,), width=arc_w)
+
+    # --- orbital ring: bold and crisp ---
+    ring_bb = [cxS - RS * 1.12, cyS - RS * 1.12, cxS + RS * 1.12, cyS + RS * 1.12]
+    ring_width = max(3, int(W * 0.034))
+    d.ellipse(ring_bb, outline=WHITE + (242,), width=ring_width)
+
+    # --- star (crisp white) ---
+    star = star_points(cxS, cyS, RS, rS)
+    d.polygon(star, fill=WHITE + (255,))
+
+    # --- luminous core: small dot at the star's center so the pin read isn't
+    # lost at tiny sizes. Uses the accent cyan to tie back to the brand. ---
+    dot_R = RS * 0.16
     d.ellipse(
-        [cx - head_r, head_cy - head_r, cx + head_r, head_cy + head_r],
-        fill=WHITE + (255,),
+        [cxS - dot_R, cyS - dot_R, cxS + dot_R, cyS + dot_R],
+        fill=CYAN + (255,),
     )
 
-    # Pin tail: a triangle pointing down from the bottom of the head to ~0.78
-    # height, narrowing to a point. Drawn as a filled polygon.
-    tail_top_y = head_cy + head_r * 0.62
-    tail_point_y = size * 0.80
-    half_w = head_r * 0.86
-    d.polygon(
-        [
-            (cx - half_w, tail_top_y),
-            (cx + half_w, tail_top_y),
-            (cx, tail_point_y),
-        ],
-        fill=WHITE + (255,),
-    )
-
-    # Accent dot inside the head — brand tint, recognizable at small sizes.
-    dot_r = head_r * 0.40
-    d.ellipse(
-        [cx - dot_r, head_cy - dot_r, cx + dot_r, head_cy + dot_r],
-        fill=ACCENT_DOT + (255,),
-    )
+    # Commit: composite the layer onto the gradient.
+    img.paste(layer.resize((size, size), Image.LANCZOS).convert('RGBA'), (0, 0), layer.resize((size, size), Image.LANCZOS))
 
 
 def render(size: int, path: str):
     img = gradient_bg(size).convert('RGBA')
-    draw_pin(img)
-    img.convert('RGB').save(path)  # opaque RGB; no transparency surprises on iOS
+    draw_mark(img)
+    img.convert('RGB').save(path)  # opaque RGB — no transparency surprises on iOS
 
 
 def main():
@@ -96,12 +140,12 @@ def main():
     render(512, os.path.join(OUT, 'pwa-512x512.png'))
     render(180, os.path.join(OUT, 'apple-touch-icon.png'))
 
-    # Multi-size favicon.ico: include 16/32/48 for crispness across contexts.
+    # Multi-size favicon.ico: 16/32/48 for crispness across contexts.
     sizes = [16, 32, 48]
     icon_imgs = []
     for s in sizes:
         im = gradient_bg(s).convert('RGBA')
-        draw_pin(im)
+        draw_mark(im)
         icon_imgs.append(im.convert('RGB'))
     icon_imgs[0].save(
         os.path.join(OUT, 'favicon.ico'),

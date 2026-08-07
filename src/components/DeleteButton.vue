@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { deleteEntry, deleteComment } from '../lib/github.js'
+import { deleteEntry, deleteComment, QueuedOfflineError } from '../lib/github.js'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
@@ -44,6 +44,13 @@ async function onConfirm() {
     // Deliberately no busy/confirmOpen reset here: the row vanishes from the
     // list, unmounting us. Writing to the refs after that logs a Vue warning.
   } catch (e) {
+    if (e instanceof QueuedOfflineError) {
+      // Queued for later sync: the tombstone the caller adds makes it LOOK
+      // deleted immediately; the branch write lands when the network returns.
+      if (isComment.value) emit('deleted', props.commentId)
+      else emit('deleted', props.entryId)
+      return
+    }
     busy.value = false
     confirmOpen.value = false
     emit('error', e.message)
@@ -56,8 +63,7 @@ async function onConfirm() {
     @click.stop="confirmOpen = true"
     :aria-label="`删除${noun}`"
     :title="`删除${noun}`"
-    class="shrink-0 flex items-center justify-center transition active:scale-90 rounded-full ring-1 bg-rose-500/10 ring-rose-500/25 hover:bg-rose-500/20"
-    :class="variant === 'comment' ? 'w-6 h-6' : 'w-8 h-8'"
+    class="shrink-0 flex items-center justify-center transition active:scale-90 rounded-full ring-1 bg-rose-500/10 ring-rose-500/25 hover:bg-rose-500/20 w-8 h-8"
   >
     <span
       class="leading-none opacity-75"

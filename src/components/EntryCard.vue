@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { getPoeticName } from '../lib/device.js'
-import { imageSrc, listSrc } from '../lib/images.js'
+import { imageSrc, listSrc, entryImages } from '../lib/images.js'
 import { isSyncing, visibilityOverrides } from '../lib/entryVisibility.js'
 import FavButton from './FavButton.vue'
 
@@ -32,6 +32,7 @@ const syncing = computed(() => {
   void visibilityOverrides.value
   return isSyncing(props.entry)
 })
+const photoCount = computed(() => entryImages(props.entry).length)
 const timeText = computed(() => {
   if (!props.entry.createdAt) return ''
   try {
@@ -66,6 +67,12 @@ const timeText = computed(() => {
         class="absolute top-2 left-2 rounded-full bg-amber-500/80 text-white text-[10px] px-2 py-0.5"
       >
         同步中
+      </span>
+      <span
+        v-if="photoCount > 1"
+        class="absolute bottom-2 right-2 rounded-full bg-black/55 text-white text-[10px] px-2 py-0.5"
+      >
+        {{ photoCount }} 张
       </span>
       <!-- @click.stop inside FavButton keeps this from opening the detail view -->
       <FavButton :entry-id="entry.id" variant="card" />

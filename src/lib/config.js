@@ -14,8 +14,6 @@ export const config = {
   // Deliberately not committed here. In the deployed bundle it is still visible
   // to site visitors, but it is NOT in the repo/source, so it is not auto-revoked.
   token: env.VITE_DATA_TOKEN || '',
-  // Build-time-only URL of the aggregated data.json served by GitHub Pages.
-  dataUrl: (env.BASE_URL || '/') + 'data.json',
   maxUploadsPerDay: 2,
   maxImageEdge: 1600,
   jpegQuality: 0.8,
