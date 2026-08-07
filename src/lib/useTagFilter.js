@@ -60,7 +60,12 @@ export function useTagFilter(tagsRef) {
     selected.value = []
   }
 
-  return { selected, toggle, clear }
+  // Direct assignment (shared across views — see useCityFilter.set).
+  function set(arr) {
+    selected.value = Array.isArray(arr) ? arr : []
+  }
+
+  return { selected, toggle, clear, set }
 }
 
 // Filtering logic shared by the community view. OR across the selected tags;
