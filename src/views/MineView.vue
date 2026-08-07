@@ -104,15 +104,42 @@ function commentTime(c) {
   }
 }
 
-// Where each of my comments landed — for the card subtitle + jump target.
+// Where each of my comments landed. Raw lookup — this can return someone
+// else's entry that has since gone private, so don't render from it directly;
+// go through openableEntryOf below.
 function entryOf(comment) {
   return props.entries.find((e) => e.id === comment.entryId)
 }
 
-function openComment(comment) {
+// The entry a comment can actually be opened to.
+//
+// Someone else's entry that has since gone private is excluded, for the same
+// reason favs excludes it: the comment was left while the entry was public,
+// and DetailView renders the whole thing — image, description, location, every
+// comment — to whoever opens it. My own private entries stay openable; being
+// private is the point, not a reason to hide them from me.
+function openableEntryOf(comment) {
+  // Touch the override store so a toggle elsewhere re-renders these rows —
+  // visibilityOf reads it, but that's invisible to Vue's tracking from here.
+  void visibilityOverrides.value
   const entry = entryOf(comment)
-  // Only openable if the entry itself is live in the feed. A pending comment
-  // on an entry we can't see (or one not yet aggregated) has nowhere to go.
+  if (!entry) return null
+  return entry.deviceId === id || visibilityOf(entry) === PUBLIC ? entry : null
+}
+
+// Subtitle for a comment row. Three distinct states, and collapsing the last
+// two would misinform: a record that went private is not "syncing", nothing is
+// in flight and waiting won't bring it back.
+function commentPlace(comment) {
+  const open = openableEntryOf(comment)
+  if (open) return open.city || open.address || '该记录'
+  return entryOf(comment) ? '记录已转私密' : '记录同步中'
+}
+
+function openComment(comment) {
+  const entry = openableEntryOf(comment)
+  // Only openable if the entry is live in the feed AND still visible to us. A
+  // pending comment on an entry we can't see has nowhere to go.
   if (entry) emit('open', entry)
 }
 </script>
@@ -205,12 +232,12 @@ function openComment(comment) {
         >
           <button
             @click="openComment(c)"
-            :disabled="!entryOf(c)"
+            :disabled="!openableEntryOf(c)"
             class="text-left min-w-0 flex-1 hover:brightness-110 disabled:opacity-60 disabled:cursor-default"
           >
             <p class="text-sm text-mist-muted leading-relaxed line-clamp-2 break-all">{{ c.text }}</p>
             <p class="text-xs text-mist-muted/70 mt-1 line-clamp-1">
-              {{ commentTime(c) }} · {{ entryOf(c) ? (entryOf(c).city || entryOf(c).address || '该记录') : '记录同步中' }}
+              {{ commentTime(c) }} · {{ commentPlace(c) }}
             </p>
           </button>
           <span
