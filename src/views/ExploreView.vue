@@ -334,6 +334,23 @@ async function initMap() {
     map = new AMap.Map(mapEl.value, { zoom: zoom.value, center: [105, 35], resizeEnable: true })
     map.on('zoomend', onZoomEnd)
     map.on('moveend', onMoveEnd)
+
+    // Self-test: drop ONE test marker at Beijing CBD so we can tell apart
+    // "AMap works but entries don't render" from "AMap itself is broken".
+    const selfTest = new AMap.Marker({
+      position: [116.4074, 39.9042],
+      content:
+        '<div style="width:18px;height:18px;border-radius:50%;background:#f43f5e;border:3px solid white;box-shadow:0 0 0 4px rgba(244,63,94,.3)"></div>',
+      offset: new AMap.Pixel(-9, -9),
+      anchor: 'center',
+      zIndex: 999,
+    })
+    selfTest.setMap(map)
+    selfTest.setLabel({
+      direction: 'bottom',
+      offset: new AMap.Pixel(0, 4),
+      content: '<div style="font-size:10px;color:#f43f5e;background:white;padding:2px 6px;border-radius:8px;border:1px solid #f43f5e">测试标记</div>',
+    })
   } catch (e) {
     mapErr.value = `地图初始化失败${e && e.message ? ': ' + e.message : ''}`
     loading.value = false
