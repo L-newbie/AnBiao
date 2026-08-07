@@ -53,16 +53,24 @@ watch(offlineReady, (ready) => {
 
 // ---- Detail state (route-driven) -----------------------------------------
 const detail = ref(null)
+// Tracks the route that owned the map/feed/mine BEFORE opening a detail, so
+// closeDetail returns the user to exactly what they came from (feed → back
+// to feed list, map → back to markers). Kept separate from route changes so
+// we never confuse "deep-linked" entries with in-app navigation.
+let detailSource = 'map'
 function openDetail(entry) {
+  detailSource = route.name === 'entry' ? detailSource : route.name
   detail.value = entry
   if (route.name !== 'entry' || route.param !== entry.id) pushRoute('entry', entry.id)
 }
 function closeDetail() {
   if (!detail.value) return
   detail.value = null
+  const backTo = detailSource
+  detailSource = 'map' // reset for next open
   if (route.name === 'entry') {
     if (detailPushedByApp()) history.back()
-    else replaceRoute('map')
+    else replaceRoute(backTo === 'map' ? 'map' : backTo)
   }
 }
 
@@ -476,7 +484,7 @@ onBeforeUnmount(() => {
     <!-- Feed overlay. Back is a floating pill at bottom-left (thumb zone,
          no chrome strip), so the feed grid runs edge-to-edge. -->
     <Transition name="view-fade">
-      <div v-if="isFeed" key="feed" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px)">
+      <div v-if="isFeed" key="feed" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain">
         <div class="max-w-5xl mx-auto px-4 pt-3 pb-24">
           <CommunityView
             :entries="filteredForFeed"
@@ -509,7 +517,7 @@ onBeforeUnmount(() => {
          already carries the user's name prominently. Back is the same
          floating pill as Feed. -->
     <Transition name="view-fade">
-      <div v-if="isMine" key="mine" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px)">
+      <div v-if="isMine" key="mine" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain">
         <div class="max-w-5xl mx-auto px-4 pt-3 pb-24">
           <MineView
             ref="mineViewRef"
@@ -533,7 +541,7 @@ onBeforeUnmount(() => {
 
     <!-- Detail overlay -->
     <Transition name="view-fade">
-      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto">
+      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto" style="overscroll-behavior: contain">
         <div class="max-w-3xl mx-auto px-4 pb-24">
           <DetailView :entry="detail" @close="closeDetail" @filter-by-tag="onFilterByTag" />
         </div>
