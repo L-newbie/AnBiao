@@ -11,6 +11,7 @@ import FavButton from '../components/FavButton.vue'
 import DeleteButton from '../components/DeleteButton.vue'
 import ShareButton from '../components/ShareButton.vue'
 import CloseButton from '../components/CloseButton.vue'
+import { visited, addVisited, removeVisited, isVisited } from '../lib/visited.js'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -180,23 +181,24 @@ function onCommentDeleteError(msg) {
 // naturally by (deviceId, city) in its list, which is exactly what the user
 // described. If a future iteration needs a hard link, the visitedIds set in
 // localStorage is the natural place to store it.
-const canCheckinHere = computed(() => {
-  // Only on my own records the button is meaningless.
-  return Boolean(props.entry) && props.entry.deviceId !== getDeviceId()
+//
+// "I've been here" — the user's own check-in tag, independent of any upload.
+// Persisted locally (gc_visited) so the map can mark where the user's
+// explored, regardless of whether they ever posted a record there.
+const hereVisited = computed(() => {
+  // Touch the store so add/remove re-renders this button.
+  void visited.value
+  return Boolean(props.entry) && isVisited(props.entry.lat, props.entry.lng)
 })
 
-function checkinHere() {
-  window.dispatchEvent(
-    new CustomEvent('gc-open-upload', {
-      detail: {
-        lng: props.entry.lng,
-        lat: props.entry.lat,
-        city: props.entry.city,
-        address: props.entry.address,
-        tags: props.entry.tags || [],
-      },
-    }),
-  )
+function toggleVisited() {
+  if (!props.entry) return
+  const loc = { lat: props.entry.lat, lng: props.entry.lng, city: props.entry.city, address: props.entry.address }
+  if (hereVisited.value) {
+    removeVisited(loc.lat, loc.lng)
+  } else {
+    addVisited(loc)
+  }
 }
 
 const MOOD_MAP = {
@@ -428,15 +430,19 @@ async function submitComment() {
       </div>
     </section>
 
-    <!-- 我也在这打卡过 — other people's records only. Opens the upload sheet
-         with this entry's exact coordinates + tags pre-filled, so the new
-         record lands at the same spot. -->
-    <section v-if="canCheckinHere">
+    <!-- 我去过这里 — personal check-in marker (localStorage-persisted), shown
+         to everyone. Tap toggles the tag; the map shows a small personal pin
+         at the same coordinates. -->
+    <section>
       <button
-        @click="checkinHere"
-        class="w-full rounded-2xl glass px-4 py-3.5 flex items-center justify-center gap-2 text-sm text-accent font-medium hover:brightness-110 transition active:scale-[0.99]"
+        @click="toggleVisited"
+        :aria-pressed="hereVisited"
+        class="w-full rounded-2xl px-4 py-3.5 flex items-center justify-center gap-2 text-sm font-medium transition active:scale-[0.99]"
+        :class="hereVisited
+          ? 'bg-gradient-to-r from-accent to-accent-2 text-white shadow-lg'
+          : 'glass text-mist-text hover:brightness-110'"
       >
-        <span>📍</span> 我也在这打卡过
+        <span>📍</span> {{ hereVisited ? '已标记为去过' : '我去过这里' }}
       </button>
     </section>
 
