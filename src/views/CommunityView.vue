@@ -10,7 +10,7 @@
 // only "filter UI" is a soft hint line showing what slice is on.
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EntryCard from '../components/EntryCard.vue'
 import SkeletonCard from '../components/SkeletonCard.vue'
 import { citiesFromEntries } from '../lib/useCityFilter.js'
@@ -55,13 +55,27 @@ function clearAll() {
   emit('update:selectedTags', [])
 }
 
-// A one-line summary of the filter slice we're showing.
+// A one-line summary of the filter slice we're showing. When there's a
+// filter applied but it selects NOTHING, we also push a toast once per
+// change — without it the user has no way to know "filter is on but no
+// data matches" vs "filter just didn't trigger".
+import { pushToast } from '../lib/toast.js'
+
 const filterSummary = computed(() => {
   const parts = []
   if (props.selectedCities.length) parts.push(...props.selectedCities)
   if (props.selectedTags.length) parts.push(...props.selectedTags.map((t) => '#' + t))
   return parts.join(' · ')
 })
+
+watch(
+  () => [props.selectedCities, props.selectedTags, props.entries.length],
+  ([cities, tags, count]) => {
+    if ((cities.length || tags.length) && count === 0) {
+      pushToast(`筛选下没有记录，试试更宽的条件`, { type: 'info' })
+    }
+  },
+)
 
 // Infinite scroll sentinel: triggers when the sentinel crosses into view.
 const sentinel = ref(null)
