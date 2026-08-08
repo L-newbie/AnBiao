@@ -359,12 +359,12 @@ button:disabled {
    behave naturally inside text fields. */
 html {
   -webkit-text-size-adjust: 100%;
-  touch-action: manipulation;
-  -ms-touch-action: manipulation;
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
 }
 body {
-  touch-action: manipulation;
-  -ms-touch-action: manipulation;
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
   /* Kill the 300ms double-tap zoom window entirely. */
   -webkit-touch-callout: none;
   overscroll-behavior: none;
