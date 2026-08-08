@@ -317,7 +317,7 @@ async function submitComment() {
 </script>
 
 <template>
-  <div class="space-y-5 pt-2" style="padding-top: max(env(safe-area-inset-top), 8px)" @keydown="onKey" tabindex="0">
+  <div class="space-y-5 pt-2 detail-root" style="padding-top: max(env(safe-area-inset-top), 8px)" @keydown="onKey" tabindex="0">
     <!-- back floating pill: accent gradient so it reads clearly over photos.
          (Same pill as Feed/Mine overlays.) -->
     <button
@@ -557,3 +557,17 @@ async function submitComment() {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Containment 是 detail view 滚动流畅的关键:
+   layout / style / paint 都 lock 在这个容器里,滚动时整个 document 不会被
+   重新 paint。原本在 background 跑的地图动画(stickpin sway / ring-wave /
+   core-pulse)还会持续 execute,但 paint 限制在下面那块,不会拖累上面
+   DetailView 的滚动帧率。 */
+.detail-root {
+  contain: layout style paint;
+  /* 让 GPU 提升一个合成层, touch 滑动在独立 compositor 上跑 */
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+</style>
