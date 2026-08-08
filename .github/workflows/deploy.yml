@@ -46,11 +46,15 @@ jobs:
           VITE_AMAP_SECRET: ${{ secrets.VITE_AMAP_SECRET }}
           # 动态获取 Owner 和 Repo，兼容 push、手动和定时 schedule 触发
           VITE_GH_OWNER: ${{ github.repository_owner }}
-          VITE_REPO_NAME: ${{ github.event.repository.name || github.event.repository.name == '' && github.event.repository.name || 'fallback_name' }} 
+          VITE_REPO_NAME: ${{ github.event.repository.name || github.event.repository.name == '' && github.event.repository.name || 'fallback_name' }}
         run: |
           # 动态提取纯仓库名（过滤掉用户名/），并写入环境变量中供 Vite 读取
           export VITE_GH_REPO=$(echo "${{ github.repository }}" | cut -d'/' -f2)
           export VITE_REPO_NAME=$VITE_GH_REPO
+          # aggregate.js 需要这两个来生成 OG 卡片里的绝对跳转链接 ——
+          # 不设置的话 OG 页 location.replace 会指向 / 而不是 /proxima/,微信打开 404
+          export VITE_BASE_URL=/$VITE_GH_REPO/
+          export VITE_SITE_URL=https://${{ github.repository_owner }}.github.io
           npm run build
           echo "==== 验证构建产物 ===="
           ls -la dist # 打印 dist 目录，确保编译成功且有文件
