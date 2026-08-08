@@ -168,15 +168,27 @@ function bubbleForCity(b) {
 
 // Sync the wanted-tier markers with what's actually on the map.
 function syncMap() {
-  if (!map || !AMap) return
-  if (inCityTier.value) {
-    // City tier: bubbles shown, everything else removed.
-    syncBubbles()
-    syncEntriesMarkers(false)
+  if (!map || !AMap) {
+    console.debug('[proxima] syncMap: no map yet, skipping (init in progress?)')
     return
   }
-  syncBubbles(false)
-  syncEntriesMarkers(true)
+  if (inCityTier.value) {
+    syncBubbles()
+    syncEntriesMarkers(false)
+  } else {
+    syncBubbles(false)
+    syncEntriesMarkers(true)
+  }
+  console.debug(
+    '[proxima] syncMap: tier =',
+    tier.value,
+    '· visible =',
+    visible.value.length,
+    '· markersOnMap =',
+    markersById.size,
+    '· bubblesOnMap =',
+    bubbleMarkers.size,
+  )
 }
 
 function syncBubbles(show = true) {
@@ -299,6 +311,7 @@ function syncVisitedPins() {
 // LOOKING at other people's records most of the time, not navigating.
 async function locate() {
   if (!AMap) throw new Error('地图未就绪')
+  console.debug('[proxima] locate() starting…')
   return new Promise((resolve, reject) => {
     const geolocation = new AMap.Geolocation({
       enableHighAccuracy: true,
@@ -309,8 +322,12 @@ async function locate() {
     })
     geolocation.getCurrentPosition((status, result) => {
       if (status === 'complete' && result && result.position) {
+        console.debug('[proxima] Geolocation SUCCESS —', result.position)
         resolve({ lng: result.position.lng, lat: result.position.lat })
       } else {
+        // rich failure message (result.message) + raw `result` dump so the
+        // commodity line tells us exactly what AMap said, not just "定位失败".
+        console.warn('[proxima] Geolocation failed:', result)
         reject(new Error((result && result.message) || '定位失败'))
       }
     })
@@ -320,20 +337,28 @@ async function locate() {
 async function initMap() {
   loading.value = true
   mapErr.value = ''
+  console.debug('[proxima] initMap() ─基准─ entries=', props.entries.length, 'allEntries=', props.allEntries.length)
+
+  // Step 1: load AMap global
   try {
     AMap = await loadAMap()
+    console.debug('[proxima] initMap: loadAMap() resolved OK')
   } catch (e) {
+    console.error('[proxima] initMap: loadAMap() FAILED —', e && e.message, e)
     mapErr.value =
       e && e.message === 'AMAP_KEY_NOT_CONFIGURED'
-        ? '' // no key = fall back to static list layout below
-        : '地图加载失败'
+        ? '' // no key = fall back to static list layout below (expected dev case)
+        : `高德地图加载失败：${(e && e.message) || '网络异常'}`
     loading.value = false
     return
   }
+
+  // Step 2: create map instance
   try {
     map = new AMap.Map(mapEl.value, { zoom: zoom.value, center: [105, 35], resizeEnable: true })
     map.on('zoomend', onZoomEnd)
     map.on('moveend', onMoveEnd)
+    console.debug('[proxima] initMap: AMap.Map created OK, container =', mapEl.value)
 
     // Self-test: drop ONE test marker at Beijing CBD so we can tell apart
     // "AMap works but entries don't render" from "AMap itself is broken".
@@ -352,24 +377,36 @@ async function initMap() {
       content: '<div style="font-size:10px;color:#f43f5e;background:white;padding:2px 6px;border-radius:8px;border:1px solid #f43f5e">测试标记</div>',
     })
   } catch (e) {
-    mapErr.value = `地图初始化失败${e && e.message ? ': ' + e.message : ''}`
+    console.error('[proxima] initMap: AMap.Map构造失败 —', e && e.message, e)
+    mapErr.value = `地图初始化失败：${(e && e.message) || '未知错误'}`
     loading.value = false
     return
   }
-  syncMap()
-  syncVisitedPins()
-  // Debug: surface the state at boot to help diagnose "map blank" reports.
-  console.debug('[proxima] map ready, visible entries =', visible.value.length, 'markers =', markersById.size)
 
-  // Startup centering:
-  //  1. default = user's current location (silently, if permission was
-  //     previously granted — first visit still stays at the country view and
-  //     waits for a manual tap on the locate button).
-  //  2. fallback = fit all visible entries (if permission denied or GPS fails).
-  // We only auto-locate ONCE at boot; we do NOT continuously track because
-  // 高德 follow-mode would ping the GPS every few seconds and drain battery
-  // even while the user is just looking at someone else's posts.
-  if (visible.value.length) map.setFitView(null, false, [80, 80, 80, 80], 14)
+  // Step 3: render markers / fitting
+  try {
+    syncMap()
+    syncVisitedPins()
+    console.debug(
+      '[proxima] map ready — visible entries =',
+      visible.value.length,
+      'markersById =',
+      markersById.size,
+      'bubbles =',
+      bubbleMarkers.size,
+      'zoom tier =',
+      tier.value,
+    )
+    if (visible.value.length) {
+      map.setFitView(null, false, [80, 80, 80, 80], 14)
+      console.debug('[proxima] map.setFitView(fitting', visible.value.length, 'entries)')
+    } else {
+      console.debug('[proxima] no visible entries yet — skipping setFitView, waiting for data watcher')
+    }
+  } catch (e) {
+    console.error('[proxima] initMap: syncMap/setFitView failed —', e && e.message, e)
+  }
+
   loading.value = false
   tryAutoLocate()
 }
@@ -377,11 +414,12 @@ async function initMap() {
 let didStartupLocate = false
 let meMarker = null
 async function tryAutoLocate() {
-  if (didStartupLocate) return
+  if (didStartupLocate) {
+    console.debug('[proxima] tryAutoLocate: already ran once, skip')
+    return
+  }
   didStartupLocate = true
-  // AMap Geolocation defaults to HIGH accuracy, which is precise but slow; we
-  // don't need that for a "show me a rough neighbourhood" boot. 8000ms timeout
-  // matches the manual locate button downstream.
+  console.debug('[proxima] tryAutoLocate: firing startup locate…')
   try {
     const pos = await locate()
     meMarker = new AMap.Marker({
@@ -395,8 +433,13 @@ async function tryAutoLocate() {
     // Recenter without zooming all the way in — the user can still see the
     // neighbourhood bubbles they started with, just now centred on them.
     map.setZoomAndCenter(Math.max(zoom.value, 11), [pos.lng, pos.lat], false, 400)
-  } catch {
-    /* silent: stays on last-good view. Manual 📍 button is always available. */
+    console.debug('[proxima] tryAutoLocate SUCCESS — centred on', pos)
+  } catch (e) {
+    console.warn(
+      '[proxima] tryAutoLocate failed (expected on some devices):',
+      e && e.message,
+      '— click the 📍 button to force retry',
+    )
   }
 }
 
