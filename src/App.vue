@@ -93,7 +93,10 @@ watch(
     } else {
       if (detail.value) detail.value = null
       modalOpen.value = false
-      filterOpen.value = false
+      // NOTE: do NOT reset filterOpen here. MapSearchBar's filter button
+      // toggles filterOpen and (on feed/mine views) also triggers a route
+      // change — wiping it here means the filter row always stays closed.
+      // The panel collapses naturally when the user navigates BACK to the map.
     }
   },
 )
