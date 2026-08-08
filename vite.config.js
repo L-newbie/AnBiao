@@ -7,6 +7,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 const repo = process.env.VITE_REPO_NAME || ''
 export default defineConfig({
   base: process.env.VITE_BASE_URL || (repo ? `/${repo}/` : '/'),
+  // Keep console.* in the production bundle so remote debugging on GitHub
+  // Pages (where we can't re-run locally) still shows our [proxima] logs in
+  // DevTools. The strip_via_mod() helper in the cloud-agent sandbox was
+  // stripping these by default, leaving a silent map init and no way to tell
+  // AM-vs-data failures apart without a local repro.
+  esbuild: {
+    pure: [],
+  },
   plugins: [
     vue(),
     // PWA: makes the site a real "Add to Home Screen" app with auto-update.
