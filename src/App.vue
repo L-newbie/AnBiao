@@ -450,7 +450,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-full app-gradient relative">
+  <div class="min-h-full app-gradient relative" :class="{ 'overlay-open': detail }">
     <!-- Map canvas: the root canvas, always mounted once -->
     <ExploreView
       key="explore"
