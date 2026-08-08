@@ -27,7 +27,9 @@
       "deviceId": "fp-50a00541",
       "author": "微光寻风",
       "text": "不错",
-      "createdAt": "2026-08-07T06:47:27.326Z"
+      "createdAt": "2026-08-07T06:47:27.326Z",
+      "status": "deleted",
+      "deletedAt": "2026-08-08T07:44:22.303Z"
     }
   ],
   "visibility": "public"
