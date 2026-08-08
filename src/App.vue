@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
     <!-- Feed overlay. Back is a floating pill at bottom-left (thumb zone,
          no chrome strip), so the feed grid runs edge-to-edge. -->
     <Transition name="view-fade">
-      <div v-if="isFeed" key="feed" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain">
+      <div v-if="isFeed" key="feed" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
         <div class="max-w-5xl mx-auto px-4 pt-3 pb-24">
           <CommunityView
             :entries="filteredForFeed"
@@ -523,7 +523,7 @@ onBeforeUnmount(() => {
          already carries the user's name prominently. Back is the same
          floating pill as Feed. -->
     <Transition name="view-fade">
-      <div v-if="isMine" key="mine" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain">
+      <div v-if="isMine" key="mine" class="fixed inset-0 z-40 bg-slate-50 overflow-y-auto" style="padding-top: max(env(safe-area-inset-top), 0px); overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
         <div class="max-w-5xl mx-auto px-4 pt-3 pb-24">
           <MineView
             ref="mineViewRef"
@@ -547,7 +547,7 @@ onBeforeUnmount(() => {
 
     <!-- Detail overlay -->
     <Transition name="view-fade">
-      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto" style="overscroll-behavior: contain">
+      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto" style="overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
         <div class="max-w-3xl mx-auto px-4 pb-24">
           <DetailView :entry="detail" @close="closeDetail" @filter-by-tag="onFilterByTag" />
         </div>
