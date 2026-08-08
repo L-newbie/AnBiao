@@ -74,7 +74,7 @@ function closeDetail() {
   }
 }
 
-useBodyScrollLock(detail)
+useBodyScrollLock(() => false) // 允许 body 在 detail 打开时也滚动 (自然滚动兼 iOS bounce)
 
 // Deep-link resolution
 const routeReady = ref(false)
@@ -547,7 +547,7 @@ onBeforeUnmount(() => {
 
     <!-- Detail overlay -->
     <Transition name="view-fade">
-      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto" style="overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
+      <div v-if="detail" key="detail" class="fixed inset-0 z-40 app-gradient overflow-y-auto" style="touch-action: pan-y; -webkit-overflow-scrolling: touch;">
         <div class="max-w-3xl mx-auto px-4 pb-24">
           <DetailView :entry="detail" @close="closeDetail" @filter-by-tag="onFilterByTag" />
         </div>
