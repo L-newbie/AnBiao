@@ -11,7 +11,7 @@
     "Test"
   ],
   "image": "images/c6e55faf-1b34-4919-af78-d8e5bcc791a1.jpg",
-  "status": "published",
+  "status": "deleted",
   "comments": [
     {
       "id": "7defbd2a-d4bc-435b-9ca4-3e127da15d0b",
@@ -32,5 +32,6 @@
       "deletedAt": "2026-08-08T07:44:22.303Z"
     }
   ],
-  "visibility": "public"
+  "visibility": "public",
+  "deletedAt": "2026-08-08T08:46:04.799Z"
 }
