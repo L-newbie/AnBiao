@@ -373,11 +373,14 @@ function syncVisitedPins() {
       marker = new AMap.Marker({
         position: [Number(v.lng), Number(v.lat)],
         content: makeVisitedContent(),
-        offset: new AMap.Pixel(-8, -8),
         anchor: 'center',
         zIndex: 40,
       })
       marker.on('click', () => {
+        // 点击 visited pin:飞到那个位置 + 放大 + toast。visited 自己只有
+        // 坐标没有 entry 数据,不能直接 open-entry,所以 flyTo + toast。
+        console.debug('[proxima] visited pin clicked —', v.city)
+        map.setZoomAndCenter(Math.max(zoom.value, 14), [Number(v.lng), Number(v.lat)], false, 320)
         pushToast(`你在这儿的 ${v.city || '这个地方'} 留下过脚印`, { type: 'success' })
       })
       visitedMarkers.set(id, marker)
@@ -1272,8 +1275,8 @@ onBeforeUnmount(() => {
    Intentionally distinct from community pins (cyan/blue) so the user sees
    their own travels at a glance. */
 .gc-visited {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 9999px;
   background: linear-gradient(135deg, #f43f5e, #f97316);
   border: 2.5px solid rgba(255, 255, 255, 0.95);
@@ -1281,9 +1284,11 @@ onBeforeUnmount(() => {
     0 0 0 4px rgba(244, 63, 94, 0.18),
     0 1px 4px rgba(15, 42, 58, 0.35);
   transition: transform 0.15s ease;
+  cursor: pointer;
+  pointer-events: auto; /* 没这个 marker.on('click') 收不到事件 */
 }
 .gc-visited:hover {
-  transform: scale(1.2);
+  transform: scale(1.25);
 }
 
 /* Search target pulse. */
