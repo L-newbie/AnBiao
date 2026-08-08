@@ -113,6 +113,7 @@ function locateMe() {
   if (locating.value) return
   locating.value = true
   err.value = ''
+  console.debug('[proxima] MapModal.locateMe() — useAMap =', useAMap)
   if (useAMap && AMap) {
     if (!geolocation) {
       geolocation = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 8000, zoomToAccuracy: true })
@@ -120,9 +121,11 @@ function locateMe() {
     geolocation.getCurrentPosition((status, result) => {
       locating.value = false
       if (status !== 'complete' || !result || result.position == null) {
+        console.warn('[proxima] MapModal locate failed:', result)
         err.value = '定位失败，请在地图上点选位置'
         return
       }
+      console.debug('[proxima] MapModal locate OK —', result.position)
       const p = { lng: result.position.getLng(), lat: result.position.getLat() }
       map?.setCenter([p.lng, p.lat])
       placeMarker(p)
