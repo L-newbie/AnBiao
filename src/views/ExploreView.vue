@@ -1309,4 +1309,22 @@ onBeforeUnmount(() => {
     opacity: 0;
   }
 }
+
+/* ============================================================
+   overlay-open: detail/feed/mine 打开时,暂停底层地图 ALL 动画。
+   不动 marker 本身,只是对 animation-play-state 一锅端 —— 一次性
+   停掉 stickpin sway / ring-wave / core-pulse 等同时跑的 4 个动画,
+   detail 里的滚动立刻 GPU 级别丝滑。
+   ============================================================ */
+.overlay-open .gc-stickpin,
+.overlay-open .gc-stickpin-dot,
+.overlay-open .gc-stickpin-dot::before,
+.overlay-open .gc-stickpin-dot::after,
+.overlay-open .gc-marker-me,
+.overlay-open .gc-visited,
+.overlay-open .gc-marker-glow,
+.overlay-open .gc-focus-halo,
+.overlay-open .gc-bubble-badge {
+  animation-play-state: paused !important;
+}
 </style>
