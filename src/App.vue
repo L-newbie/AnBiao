@@ -463,9 +463,11 @@ onBeforeUnmount(() => {
       @preview-entry="onPreviewEntry"
     />
 
-    <!-- Top chrome: search + mine entry (hidden while detail/mine open) -->
+    <!-- Top chrome: search + mine entry. Render ONLY on the map itself —
+         the feed/mine overlays are z-40 fixed and would physically cover
+         this (z-30 absolute) bar, swallowing every tap before it lands. -->
     <MapSearchBar
-      v-show="!detail && !isMine"
+      v-show="isMap && !detail && !isMine"
       :entries="visibleCommunity"
       v-model:selectedCities="selectedCities"
       v-model:selectedTags="selectedTags"
@@ -497,6 +499,7 @@ onBeforeUnmount(() => {
             :selectedCities="selectedCities"
             :selectedTags="selectedTags"
             :hasMore="hasMore"
+            v-model:filterOpen="filterOpen"
             @open="openDetail"
             @refresh="onPullRefresh"
             @load-more="loadMore"
