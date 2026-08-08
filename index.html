@@ -10,6 +10,10 @@
          vite-plugin-pwa injects <link rel="manifest"> automatically. -->
     <link rel="icon" href="favicon.ico" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!-- Standard (non-Apple) form first; the apple- prefixed one is kept for
+         legacy Safari which ignores the standard one. Both together silence
+         the "is deprecated" console warning on every mobile browser. -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="比邻云" />
