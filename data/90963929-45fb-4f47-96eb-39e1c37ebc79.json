@@ -1,0 +1,23 @@
+{
+  "id": "90963929-45fb-4f47-96eb-39e1c37ebc79",
+  "deviceId": "fp-f4cdbd1e",
+  "createdAt": "2026-08-08T09:11:10.502Z",
+  "lat": 41.564492,
+  "lng": 112.630574,
+  "city": "乌兰察布市",
+  "address": "内蒙古自治区乌兰察布市察哈尔右翼中旗铁沙盖镇花毛卜子",
+  "description": "噜噜",
+  "tags": [
+    "随手拍"
+  ],
+  "image": "images/90963929-45fb-4f47-96eb-39e1c37ebc79-0.jpg",
+  "images": [
+    "images/90963929-45fb-4f47-96eb-39e1c37ebc79-0.jpg",
+    "images/90963929-45fb-4f47-96eb-39e1c37ebc79-1.jpg",
+    "images/90963929-45fb-4f47-96eb-39e1c37ebc79-2.jpg"
+  ],
+  "status": "published",
+  "visibility": "public",
+  "mood": "happy",
+  "weather": "sunny"
+}
